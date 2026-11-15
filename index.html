@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minecraft – Site officiel (clone)</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@south-paw/typeface-minecraft@1.0.0/index.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="container">
+      <a href="#accueil" class="logo">MINECRAFT</a>
+      <nav class="nav">
+        <input type="checkbox" id="menu-toggle" class="menu-toggle">
+        <label for="menu-toggle" class="hamburger">&#9776;</label>
+        <ul class="nav-list">
+          <li><a href="#accueil">Accueil</a></li>
+          <li><a href="#jeux">Jeux</a></li>
+          <li><a href="#actualites">Actualités</a></li>
+          <li><a href="#communaute">Communauté</a></li>
+          <li><a href="#support">Support</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" id="accueil">
+      <div class="hero-content">
+        <h1 class="hero-title">Bienvenue dans<br><span class="minecraft-green">Minecraft</span></h1>
+        <p class="hero-subtitle">Explorez, construisez et survivez dans un monde infini de blocs.</p>
+        <div class="hero-buttons">
+          <a href="#" class="btn btn-primary">Jouer maintenant</a>
+          <a href="#jeux" class="btn btn-secondary">En savoir plus</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="jeux">
+      <div class="container">
+        <h2 class="section-title">Choisissez votre aventure</h2>
+        <div class="grid">
+          <div class="card">
+            <img src="https://raw.githubusercontent.com/paulrobello/voxel-world/main/textures/grass_side_64x64.png" alt="Java Edition" class="card-img">
+            <h3>Minecraft: Java Edition</h3>
+            <p>La version originale pour PC, avec des mods et des serveurs infinis.</p>
+            <a href="#" class="btn btn-primary">Découvrir</a>
+          </div>
+          <div class="card">
+            <img src="https://raw.githubusercontent.com/paulrobello/voxel-world/main/textures/stone_64x64.png" alt="Bedrock Edition" class="card-img">
+            <h3>Minecraft: Bedrock Edition</h3>
+            <p>Jouez sur console, mobile et Windows avec le cross-play.</p>
+            <a href="#" class="btn btn-primary">Découvrir</a>
+          </div>
+          <div class="card">
+            <img src="https://raw.githubusercontent.com/paulrobello/voxel-world/main/textures/diamond_ore_64x64.png" alt="Dungeons" class="card-img">
+            <h3>Minecraft Dungeons</h3>
+            <p>Un jeu d'aventure et d'action dans l'univers de Minecraft.</p>
+            <a href="#" class="btn btn-primary">Découvrir</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-dark" id="actualites">
+      <div class="container">
+        <h2 class="section-title">Dernières actualités</h2>
+        <div class="news-grid">
+          <article class="news-card">
+            <h3>Mise à jour 1.21</h3>
+            <p>Découvrez les nouvelles fonctionnalités et les blocs inédits.</p>
+            <a href="#" class="read-more">Lire la suite &rarr;</a>
+          </article>
+          <article class="news-card">
+            <h3>Minecraft Live 2026</h3>
+            <p>Revivez les annonces majeures de l'événement annuel.</p>
+            <a href="#" class="read-more">Lire la suite &rarr;</a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="communaute">
+      <div class="container">
+        <h2 class="section-title">Rejoignez la communauté</h2>
+        <p class="section-text">Des millions de joueurs créent, partagent et explorent ensemble.</p>
+        <div class="hero-buttons">
+          <a href="#" class="btn btn-primary">Forum</a>
+          <a href="#" class="btn btn-secondary">Discord</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer" id="support">
+    <div class="container">
+      <p>&copy; 2026 Clone non officiel de Minecraft. Tous droits réservés à Mojang Studios.</p>
+      <p>Ce site est une démonstration à but éducatif.</p>
+    </div>
+  </footer>
+
+  <script>
+    document.querySelectorAll('.nav-list a').forEach(link => {
+      link.addEventListener('click', () => {
+        document.getElementById('menu-toggle').checked = false;
+      });
+    });
+  </script>
+</body>
+</html>
