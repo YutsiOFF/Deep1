@@ -3,15 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Minecraft – Site officiel (clone)</title>
+  <title>Minecraft – Explorez l'infini</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@south-paw/typeface-minecraft@1.0.0/index.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div class="bg-layer"></div>
+  <div class="bg-overlay"></div>
+
   <header class="header">
-    <div class="container">
+    <div class="container nav-container">
       <a href="#accueil" class="logo">MINECRAFT</a>
-      <nav class="nav">
+      <nav>
         <input type="checkbox" id="menu-toggle" class="menu-toggle">
         <label for="menu-toggle" class="hamburger">&#9776;</label>
         <ul class="nav-list">
@@ -28,53 +31,65 @@
   <main>
     <section class="hero" id="accueil">
       <div class="hero-content">
-        <h1 class="hero-title">Bienvenue dans<br><span class="minecraft-green">Minecraft</span></h1>
-        <p class="hero-subtitle">Explorez, construisez et survivez dans un monde infini de blocs.</p>
+        <p class="hero-tag">The Wild Update</p>
+        <h1 class="hero-title">Explorez<br><span class="gradient-text">l'infini</span></h1>
+        <p class="hero-subtitle">Des forêts luxuriantes aux profondeurs obscures, chaque bloc cache une nouvelle aventure.</p>
         <div class="hero-buttons">
-          <a href="#" class="btn btn-primary">Jouer maintenant</a>
-          <a href="#jeux" class="btn btn-secondary">En savoir plus</a>
+          <a href="#jeux" class="btn btn-primary">Jouer maintenant</a>
+          <a href="#actualites" class="btn btn-ghost">Voir les nouveautés</a>
         </div>
       </div>
+      <a href="#jeux" class="scroll-hint">&#9660;</a>
     </section>
 
     <section class="section" id="jeux">
       <div class="container">
         <h2 class="section-title">Choisissez votre aventure</h2>
+        <p class="section-sub">Trois univers, une même passion du bloc.</p>
         <div class="grid">
-          <div class="card">
-            <img src="https://raw.githubusercontent.com/paulrobello/voxel-world/main/textures/grass_side_64x64.png" alt="Java Edition" class="card-img">
-            <h3>Minecraft: Java Edition</h3>
-            <p>La version originale pour PC, avec des mods et des serveurs infinis.</p>
-            <a href="#" class="btn btn-primary">Découvrir</a>
+          <div class="card glass">
+            <div class="card-icon">⛏</div>
+            <h3>Java Edition</h3>
+            <p>La version originale pour PC. Mods, serveurs, redstone — la liberté totale.</p>
+            <a href="#" class="btn btn-primary btn-sm">Découvrir</a>
           </div>
-          <div class="card">
-            <img src="https://raw.githubusercontent.com/paulrobello/voxel-world/main/textures/stone_64x64.png" alt="Bedrock Edition" class="card-img">
-            <h3>Minecraft: Bedrock Edition</h3>
-            <p>Jouez sur console, mobile et Windows avec le cross-play.</p>
-            <a href="#" class="btn btn-primary">Découvrir</a>
+          <div class="card glass">
+            <div class="card-icon">🌍</div>
+            <h3>Bedrock Edition</h3>
+            <p>Console, mobile, Windows. Cross-play avec tous vos amis, où qu'ils soient.</p>
+            <a href="#" class="btn btn-primary btn-sm">Découvrir</a>
           </div>
-          <div class="card">
-            <img src="https://raw.githubusercontent.com/paulrobello/voxel-world/main/textures/diamond_ore_64x64.png" alt="Dungeons" class="card-img">
-            <h3>Minecraft Dungeons</h3>
-            <p>Un jeu d'aventure et d'action dans l'univers de Minecraft.</p>
-            <a href="#" class="btn btn-primary">Découvrir</a>
+          <div class="card glass">
+            <div class="card-icon">⚔</div>
+            <h3>Dungeons</h3>
+            <p>Action-aventure en donjon. Combattez l'Arch-illager et sauvez le royaume.</p>
+            <a href="#" class="btn btn-primary btn-sm">Découvrir</a>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="section section-dark" id="actualites">
+    <section class="section" id="actualites">
       <div class="container">
         <h2 class="section-title">Dernières actualités</h2>
+        <p class="section-sub">Ce qui se passe dans le monde cubique.</p>
         <div class="news-grid">
-          <article class="news-card">
-            <h3>Mise à jour 1.21</h3>
-            <p>Découvrez les nouvelles fonctionnalités et les blocs inédits.</p>
+          <article class="news-card glass">
+            <span class="news-tag">Mise à jour</span>
+            <h3>Patch 1.21 — Tricky Trials</h3>
+            <p>Nouvelles armes, chambres d'épreuves et un boss inédit vous attendent.</p>
             <a href="#" class="read-more">Lire la suite &rarr;</a>
           </article>
-          <article class="news-card">
+          <article class="news-card glass">
+            <span class="news-tag">Événement</span>
             <h3>Minecraft Live 2026</h3>
-            <p>Revivez les annonces majeures de l'événement annuel.</p>
+            <p>Revivez les annonces majeures, les mob votes et les surprises de l'événement.</p>
+            <a href="#" class="read-more">Lire la suite &rarr;</a>
+          </article>
+          <article class="news-card glass">
+            <span class="news-tag">Communauté</span>
+            <h3>Builds de la semaine</h3>
+            <p>Les plus belles créations partagées par la communauté cette semaine.</p>
             <a href="#" class="read-more">Lire la suite &rarr;</a>
           </article>
         </div>
@@ -82,12 +97,12 @@
     </section>
 
     <section class="section" id="communaute">
-      <div class="container">
+      <div class="container cta-block glass">
         <h2 class="section-title">Rejoignez la communauté</h2>
-        <p class="section-text">Des millions de joueurs créent, partagent et explorent ensemble.</p>
+        <p class="section-sub">Des millions de joueurs créent, partagent et explorent ensemble.</p>
         <div class="hero-buttons">
           <a href="#" class="btn btn-primary">Forum</a>
-          <a href="#" class="btn btn-secondary">Discord</a>
+          <a href="#" class="btn btn-ghost">Discord</a>
         </div>
       </div>
     </section>
@@ -95,8 +110,8 @@
 
   <footer class="footer" id="support">
     <div class="container">
-      <p>&copy; 2026 Clone non officiel de Minecraft. Tous droits réservés à Mojang Studios.</p>
-      <p>Ce site est une démonstration à but éducatif.</p>
+      <p>&copy; 2026 — Clone non officiel de Minecraft · Démo éducative</p>
+      <p class="muted">Les marques et contenus appartiennent à Mojang Studios / Microsoft.</p>
     </div>
   </footer>
 
