@@ -8,7 +8,7 @@ const state = {
   searchTimeout: null,
   genreCache: null,
   genreList: [],
-  currentSource: 'moviez',
+
   filterPage: 1,
   filterTotalPages: 1,
   filterItems: [],
@@ -163,7 +163,7 @@ async function performSearch(q) {
 /* ---------- Modale ---------- */
 async function openModal(item, type = 'movie') {
   state.currentModal = { item, type };
-  state.currentSource = 'vidlink'; state.currentLang = 'vf';
+  state.currentLang = 'vf';
   const title = item.title || item.name || '';
   const date = item.release_date || item.first_air_date;
   const backdrop = item.backdrop_path || item.poster_path;
@@ -231,32 +231,23 @@ function closeModal() {
   state.currentModal = null;
 }
 
-/* ---------- Construction des URLs ---------- */
-function buildEmbed(source) {
-  const ctx = state.currentModal; if (!ctx) return null;
-  const id = ctx.item.id;
-  const isTv = ctx.type === 'tv';
+function playCurrent() {
+  const ctx = state.currentModal;
+  if (!ctx) return;
+
+  const isTv = ctx.type === 'tv' || ctx.detail?.detectedType === 'series';
   const season = $('#season-select')?.value || '1';
   const ep = $('#episode-select')?.value || '1';
   const lang = state.currentLang || 'vf';
 
-  if (source === 'cinesrc') {
-    return isTv
-      ? `https://cinesrc.st/embed/tv/${id}?s=${season}&e=${ep}&lang=${lang}`
-      : `https://cinesrc.st/embed/movie/${id}?lang=${lang}`;
-  }
-  // MoviezAPI (défaut, testé)
-  if (isTv) {
-    return `https://api.moviez.ac/serie/${id}/${season}/${ep}?lang=${lang}`;
-  }
-  return `https://api.moviez.ac/${id}?lang=${lang}`;
-}
+  // Lecteur natif maison (player.html) basé sur NuvioHub :
+  // flux m3u8 direct, zéro pub, zéro iframe tierce.
+  const playerUrl = `player.html?tmdb=${ctx.item.id}&type=${isTv ? 'tv' : 'movie'}` +
+    (isTv ? `&season=${season}&episode=${ep}` : '') +
+    `&lang=${lang}`;
 
-function playCurrent() {
-  const embed = buildEmbed(state.currentSource);
-  if (!embed) return;
   const frame = $('#player-frame');
-  frame.src = embed;
+  frame.src = playerUrl;
   $('#player-container').style.display = 'block';
   $('#player-container').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
