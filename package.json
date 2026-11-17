@@ -1,0 +1,20 @@
+{
+  "name": "deep1-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Backend proxy Deep1 — extrait le flux HLS (CineSrc/MoviezAPI) et le proxifie pour lecture sans publicité via player.html",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "postinstall": "npx playwright install chromium"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "cors": "^2.8.5",
+    "axios": "^1.7.7",
+    "playwright": "^1.48.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

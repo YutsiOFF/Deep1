@@ -399,11 +399,20 @@ function buildEmbed(source) {
 }
 
 function playCurrent() {
-  const embed = buildEmbed(state.currentSource);
-  if (!embed) { alert('Source indisponible pour ce titre.'); return; }
+  const ctx = state.currentModal;
+  if (!ctx) return;
+
+  const type = ctx.detail?.detectedType === 'series' ? 'tv' : (ctx.type === 'tv' ? 'tv' : 'movie');
+  const season = $('#season-select')?.value || '1';
+  const episode = $('#episode-select')?.value || '1';
+  const lang = state.currentLang || 'vf';
+
+  // Notre lecteur maison (player.html) — sans pub, HLS.js + proxy backend
+  const playerUrl = `player.html?tmdb=${ctx.item.id}&type=${type}&season=${season}&episode=${episode}&lang=${lang}`;
+
   const container = $('#player-container');
   const frame = $('#player-frame');
-  frame.src = embed;
+  frame.src = playerUrl;
   container.style.display = 'block';
   container.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
