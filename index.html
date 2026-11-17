@@ -9,7 +9,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
 </head>
 <body>
-  <!-- Navigation -->
   <header class="navbar" id="navbar">
     <div class="navbar-inner">
       <a href="#" class="logo">DEEP<span>1</span></a>
@@ -29,7 +28,7 @@
     </div>
   </header>
 
-  <!-- Barre de filtres (remontée tout en haut) -->
+  <!-- Barre de filtres tout en haut -->
   <section class="filters-bar" id="filters-bar">
     <div class="filters-inner">
       <div class="filter-group">
@@ -41,15 +40,11 @@
       </div>
       <div class="filter-group">
         <label for="filter-genre">Catégorie</label>
-        <select id="filter-genre">
-          <option value="">Toutes</option>
-        </select>
+        <select id="filter-genre"><option value="">Toutes</option></select>
       </div>
       <div class="filter-group">
         <label for="filter-year">Année</label>
-        <select id="filter-year">
-          <option value="">Toutes</option>
-        </select>
+        <select id="filter-year"><option value="">Toutes</option></select>
       </div>
       <div class="filter-group">
         <label for="filter-sort">Tri</label>
@@ -65,7 +60,6 @@
     </div>
   </section>
 
-  <!-- Hero -->
   <section class="hero" id="accueil">
     <div class="hero-backdrop" id="hero-backdrop"></div>
     <div class="hero-gradient"></div>
@@ -87,7 +81,6 @@
     </div>
   </section>
 
-  <!-- Résultats de filtres / recherche -->
   <section class="row-section" id="filter-results-section" style="display:none;">
     <div class="row-header">
       <h2 id="filter-results-title">Résultats</h2>
@@ -98,7 +91,6 @@
     </div>
   </section>
 
-  <!-- Rangées de films -->
   <main class="main-content">
     <section class="row-section" id="tendances">
       <div class="row-header">
@@ -156,7 +148,7 @@
     </section>
   </main>
 
-  <!-- Modale de détails / lecture -->
+  <!-- Modale -->
   <div class="modal-overlay" id="modal-overlay">
     <div class="modal" id="modal">
       <button class="modal-close" id="modal-close">✕</button>
@@ -170,17 +162,32 @@
           <button class="btn btn-secondary" id="modal-trailer">Bande-annonce</button>
         </div>
 
+        <!-- Sélecteur de source -->
+        <div class="source-bar" id="source-bar">
+          <span class="source-label">Source :</span>
+          <button class="source-btn active" data-source="vidlink">VidLink (propre)</button>
+          <button class="source-btn" data-source="cinesrc">CineSrc</button>
+        </div>
+
         <div id="lang-bar"></div>
         <div id="episode-bar" style="display:none;"></div>
+
+        <!-- Iframe sandboxée : bloque les popups, autorise la lecture -->
         <div class="player-container" id="player-container" style="display:none;">
-          <iframe id="player-frame" allowfullscreen allow="autoplay; fullscreen"></iframe>
+          <iframe
+            id="player-frame"
+            allowfullscreen
+            allow="autoplay; fullscreen; encrypted-media"
+            sandbox="allow-scripts allow-same-origin allow-presentation"
+            referrerpolicy="no-referrer">
+          </iframe>
         </div>
       </div>
     </div>
   </div>
 
   <footer class="footer">
-    <p>Deep1 — Démo de streaming. Données : TMDB · Lecteur maison HLS sans publicité.</p>
+    <p>Deep1 — Démo de streaming. Données : TMDB · Lecteur : VidLink / CineSrc.</p>
   </footer>
 
   <script src="app.js"></script>

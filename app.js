@@ -1,14 +1,6 @@
-/* ============================================================
-   Deep1 — Streaming UI
-   Données : TMDB Discover (filtres genre/année/tri)
-   Lecteurs : MoviezAPI + CineSrc (ad-minimal)
-   ============================================================ */
-
 const TMDB_API_KEY = 'ec801beca6ce458e2a220a27ee334746';
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 const IMG_BASE = 'https://image.tmdb.org/t/p';
-const MOVIEZ_BASE = 'https://api.moviez.ac';
-const CINESRC_BASE = 'https://cinesrc.st/embed';
 
 const state = {
   heroMovie: null,
@@ -16,7 +8,7 @@ const state = {
   searchTimeout: null,
   genreCache: null,
   genreList: [],
-  currentSource: 'moviez',
+  currentSource: 'vidlink',
   filterPage: 1,
   filterTotalPages: 1,
   filterItems: [],
@@ -25,7 +17,6 @@ const state = {
   currentLang: 'vf',
 };
 
-/* ---------- Helpers ---------- */
 const $ = (sel, ctx = document) => ctx.querySelector(sel);
 const $$ = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
 
@@ -33,69 +24,48 @@ async function tmdb(path, params = {}) {
   const url = new URL(`${TMDB_BASE}${path}`);
   url.searchParams.set('api_key', TMDB_API_KEY);
   url.searchParams.set('language', 'fr-FR');
-  Object.entries(params).forEach(([k, v]) => {
-    if (v !== '' && v != null) url.searchParams.set(k, v);
-  });
+  Object.entries(params).forEach(([k, v]) => { if (v !== '' && v != null) url.searchParams.set(k, v); });
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`TMDB ${res.status} sur ${path}`);
+  if (!res.ok) throw new Error(`TMDB ${res.status}`);
   return res.json();
 }
 
-async function moviezCheck(tmdbId) {
-  try {
-    const res = await fetch(`${MOVIEZ_BASE}/api/check/${tmdbId}`);
-    if (!res.ok) return null;
-    return await res.json();
-  } catch { return null; }
-}
-
-const posterURL = (path, size = 'w500') => path ? `${IMG_BASE}/${size}${path}` : '';
-const backdropURL = (path, size = 'w1280') => path ? `${IMG_BASE}/${size}${path}` : '';
-const yearOf = (date) => date ? new Date(date).getFullYear() : '—';
+const posterURL = (p, s = 'w500') => p ? `${IMG_BASE}/${s}${p}` : '';
+const backdropURL = (p, s = 'w1280') => p ? `${IMG_BASE}/${s}${p}` : '';
+const yearOf = (d) => d ? new Date(d).getFullYear() : '—';
 const rating = (v) => v ? v.toFixed(1) : '—';
 
-/* ---------- Genres (préchargés une fois) ---------- */
+/* ---------- Genres ---------- */
 async function loadGenres() {
   if (state.genreCache) return;
-  const [movies, tv] = await Promise.all([
+  const [m, t] = await Promise.all([
     tmdb('/genre/movie/list').catch(() => ({ genres: [] })),
     tmdb('/genre/tv/list').catch(() => ({ genres: [] })),
   ]);
   const map = {};
   const list = [];
-  [...(movies.genres || []), ...(tv.genres || [])].forEach((g) => {
+  [...(m.genres || []), ...(t.genres || [])].forEach((g) => {
     if (!map[g.id]) { map[g.id] = g.name; list.push({ id: g.id, name: g.name }); }
   });
   state.genreCache = map;
   state.genreList = list.sort((a, b) => a.name.localeCompare(b.name));
   populateGenreSelect();
 }
-
 function populateGenreSelect() {
-  const sel = $('#filter-genre');
-  if (!sel) return;
+  const sel = $('#filter-genre'); if (!sel) return;
   sel.innerHTML = '<option value="">Toutes</option>';
   state.genreList.forEach((g) => {
-    const opt = document.createElement('option');
-    opt.value = g.id;
-    opt.textContent = g.name;
-    sel.appendChild(opt);
+    const o = document.createElement('option'); o.value = g.id; o.textContent = g.name; sel.appendChild(o);
   });
 }
-
 function populateYearSelect() {
-  const sel = $('#filter-year');
-  if (!sel) return;
-  const current = new Date().getFullYear();
+  const sel = $('#filter-year'); if (!sel) return;
+  const y = new Date().getFullYear();
   sel.innerHTML = '<option value="">Toutes</option>';
-  for (let y = current; y >= 1950; y--) {
-    const opt = document.createElement('option');
-    opt.value = y;
-    opt.textContent = y;
-    sel.appendChild(opt);
+  for (let i = y; i >= 1950; i--) {
+    const o = document.createElement('option'); o.value = i; o.textContent = i; sel.appendChild(o);
   }
 }
-
 const genreNames = (ids) => (ids || []).map((id) => state.genreCache?.[id]).filter(Boolean);
 
 /* ---------- Cartes ---------- */
@@ -105,416 +75,237 @@ function createCard(item, type = 'movie') {
   const card = document.createElement('div');
   card.className = 'card';
   card.innerHTML = `
-    <img class="card-poster" loading="lazy" alt="${title}"
-         src="${posterURL(item.poster_path)}"
+    <img class="card-poster" loading="lazy" alt="${title}" src="${posterURL(item.poster_path)}"
          onerror="this.style.background='#1a1a24';this.removeAttribute('src')" />
     <div class="card-info">
       <div class="card-title">${title}</div>
-      <div class="card-sub">
-        <span>${yearOf(date)}</span>
-        <span class="card-rating">★ ${rating(item.vote_average)}</span>
-      </div>
+      <div class="card-sub"><span>${yearOf(date)}</span><span class="card-rating">★ ${rating(item.vote_average)}</span></div>
     </div>`;
   card.addEventListener('click', () => openModal(item, type));
   return card;
 }
-
-function renderRow(containerId, items, type = 'movie', append = false) {
-  const row = document.getElementById(containerId);
-  if (!row) return;
+function renderRow(id, items, type = 'movie', append = false) {
+  const row = document.getElementById(id); if (!row) return;
   if (!append) row.innerHTML = '';
   if ((!items || !items.length) && !append) {
-    row.innerHTML = `<p style="color:#9a9aa8;font-size:14px;padding:12px 0;">Aucun résultat.</p>`;
-    return;
+    row.innerHTML = `<p style="color:#9a9aa8;font-size:14px;padding:12px 0;">Aucun résultat.</p>`; return;
   }
-  items.forEach((item) => row.appendChild(createCard(item, type)));
+  items.forEach((it) => row.appendChild(createCard(it, type)));
 }
 
 /* ---------- Hero ---------- */
 async function loadHero() {
   try {
-    const data = await tmdb('/trending/movie/week');
-    const results = data.results || [];
-    const movie = results[Math.floor(Math.random() * Math.min(5, results.length))] || results[0];
-    if (!movie) return;
-    state.heroMovie = movie;
-    $('#hero-backdrop').style.backgroundImage = `url('${backdropURL(movie.backdrop_path)}')`;
-    $('#hero-title').textContent = movie.title || movie.name || '';
-    $('#hero-overview').textContent = movie.overview || 'Aucun synopsis disponible.';
-    const genres = genreNames(movie.genre_ids).slice(0, 3);
+    const d = await tmdb('/trending/movie/week');
+    const r = d.results || [];
+    const m = r[Math.floor(Math.random() * Math.min(5, r.length))] || r[0];
+    if (!m) return;
+    state.heroMovie = m;
+    $('#hero-backdrop').style.backgroundImage = `url('${backdropURL(m.backdrop_path)}')`;
+    $('#hero-title').textContent = m.title || m.name || '';
+    $('#hero-overview').textContent = m.overview || 'Aucun synopsis.';
+    const g = genreNames(m.genre_ids).slice(0, 3);
     $('#hero-meta').innerHTML = `
-      <span class="rating">★ ${rating(movie.vote_average)}</span>
-      <span>${yearOf(movie.release_date)}</span>
-      ${genres.length ? `<span>${genres.join(' · ')}</span>` : ''}
-      <span class="dot"></span>
-      <span>HD</span>`;
-  } catch (e) {
-    console.error('Hero:', e);
-    $('#hero-title').textContent = 'Bienvenue sur Deep1';
-    $('#hero-overview').textContent = 'Impossible de charger les tendances pour le moment.';
-  }
+      <span class="rating">★ ${rating(m.vote_average)}</span><span>${yearOf(m.release_date)}</span>
+      ${g.length ? `<span>${g.join(' · ')}</span>` : ''}<span class="dot"></span><span>HD</span>`;
+  } catch (e) { console.error(e); $('#hero-title').textContent = 'Bienvenue sur Deep1'; }
 }
 
-/* ---------- Rangées d'accueil ---------- */
-async function loadTrending() {
-  try { const d = await tmdb('/trending/movie/week'); renderRow('row-tendances', (d.results || []).slice(0, 18)); }
-  catch (e) { console.error('Tendances:', e); }
-}
-async function loadNewReleases() {
-  try { const d = await tmdb('/movie/now_playing', { region: 'FR' }); renderRow('row-nouveautes', (d.results || []).slice(0, 18)); }
-  catch (e) { console.error('Nouveautés:', e); }
-}
-async function loadPopular() {
-  try { const d = await tmdb('/movie/popular'); renderRow('row-populaires', (d.results || []).slice(0, 18)); }
-  catch (e) { console.error('Populaires:', e); }
-}
-async function loadSeries() {
-  try { const d = await tmdb('/tv/popular'); renderRow('row-series', (d.results || []).slice(0, 18), 'tv'); }
-  catch (e) { console.error('Séries:', e); }
-}
-async function loadTopRated() {
-  try { const d = await tmdb('/movie/top_rated'); renderRow('row-top', (d.results || []).slice(0, 18)); }
-  catch (e) { console.error('Top:', e); }
-}
+/* ---------- Rangées ---------- */
+async function loadTrending() { try { const d = await tmdb('/trending/movie/week'); renderRow('row-tendances', (d.results || []).slice(0, 18)); } catch (e) { console.error(e); } }
+async function loadNewReleases() { try { const d = await tmdb('/movie/now_playing', { region: 'FR' }); renderRow('row-nouveautes', (d.results || []).slice(0, 18)); } catch (e) { console.error(e); } }
+async function loadPopular() { try { const d = await tmdb('/movie/popular'); renderRow('row-populaires', (d.results || []).slice(0, 18)); } catch (e) { console.error(e); } }
+async function loadSeries() { try { const d = await tmdb('/tv/popular'); renderRow('row-series', (d.results || []).slice(0, 18), 'tv'); } catch (e) { console.error(e); } }
+async function loadTopRated() { try { const d = await tmdb('/movie/top_rated'); renderRow('row-top', (d.results || []).slice(0, 18)); } catch (e) { console.error(e); } }
 
 /* ---------- Filtres Discover ---------- */
 function getFilters() {
-  return {
-    type: $('#filter-type').value,
-    genre: $('#filter-genre').value,
-    year: $('#filter-year').value,
-    sort: $('#filter-sort').value,
-  };
+  return { type: $('#filter-type').value, genre: $('#filter-genre').value, year: $('#filter-year').value, sort: $('#filter-sort').value };
 }
-
 async function loadDiscover(page = 1, append = false) {
   const f = getFilters();
-  const params = {
-    sort_by: f.sort,
-    page: String(page),
-    'vote_count.gte': '20',
-  };
+  const params = { sort_by: f.sort, page: String(page), 'vote_count.gte': '20' };
   if (f.genre) params.with_genres = f.genre;
-  if (f.year) {
-    if (f.type === 'tv') params.first_air_date_year = f.year;
-    else params.primary_release_year = f.year;
-  }
-
+  if (f.year) { if (f.type === 'tv') params.first_air_date_year = f.year; else params.primary_release_year = f.year; }
   const path = f.type === 'tv' ? '/discover/tv' : '/discover/movie';
-  state.filterLoading = true;
-  $('#load-more').disabled = true;
-  $('#load-more').textContent = 'Chargement…';
-
+  state.filterLoading = true; $('#load-more').disabled = true; $('#load-more').textContent = 'Chargement…';
   try {
-    const data = await tmdb(path, params);
-    const results = (data.results || []).filter((r) => r.poster_path);
-    state.filterTotalPages = data.total_pages || 1;
-    state.filterPage = page;
+    const d = await tmdb(path, params);
+    const r = (d.results || []).filter((x) => x.poster_path);
+    state.filterTotalPages = d.total_pages || 1; state.filterPage = page;
     if (!append) state.filterItems = [];
-    state.filterItems = state.filterItems.concat(results);
-    renderRow('filter-results', results, f.type, append);
+    state.filterItems = state.filterItems.concat(r);
+    renderRow('filter-results', r, f.type, append);
     $('#filter-results-section').style.display = 'block';
-    const label = f.type === 'tv' ? 'Séries' : 'Films';
-    const genreName = f.genre ? (state.genreCache?.[f.genre] || '') : '';
-    $('#filter-results-title').textContent =
-      `${label}${genreName ? ' · ' + genreName : ''}${f.year ? ' · ' + f.year : ''} — ${state.filterItems.length} titres`;
+    const g = f.genre ? (state.genreCache?.[f.genre] || '') : '';
+    $('#filter-results-title').textContent = `${f.type === 'tv' ? 'Séries' : 'Films'}${g ? ' · ' + g : ''}${f.year ? ' · ' + f.year : ''} — ${state.filterItems.length} titres`;
     $('#load-more').style.display = page < state.filterTotalPages ? 'inline-flex' : 'none';
     $('#filter-results-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  } catch (e) {
-    console.error('Discover:', e);
-    alert('Erreur lors du chargement des filtres.');
-  } finally {
-    state.filterLoading = false;
-    $('#load-more').disabled = false;
-    $('#load-more').textContent = 'Charger plus';
-  }
+  } catch (e) { console.error(e); alert('Erreur filtres.'); }
+  finally { state.filterLoading = false; $('#load-more').disabled = false; $('#load-more').textContent = 'Charger plus'; }
 }
 
 /* ---------- Recherche ---------- */
-async function performSearch(query) {
-  const q = query.trim();
-  if (!q) {
-    $('#filter-results-section').style.display = 'none';
-    return;
-  }
+async function performSearch(q) {
+  q = q.trim();
+  if (!q) { $('#filter-results-section').style.display = 'none'; return; }
   try {
-    const data = await tmdb('/search/multi', { query: q, include_adult: 'false' });
-    const results = (data.results || []).filter(
-      (r) => (r.media_type === 'movie' || r.media_type === 'tv') && r.poster_path
-    );
-    renderRow('filter-results', results.slice(0, 18), 'movie');
+    const d = await tmdb('/search/multi', { query: q, include_adult: 'false' });
+    const r = (d.results || []).filter((x) => (x.media_type === 'movie' || x.media_type === 'tv') && x.poster_path);
+    renderRow('filter-results', r.slice(0, 18), 'movie');
     $('#filter-results-section').style.display = 'block';
-    $('#filter-results-title').textContent = `Recherche : « ${q} » (${results.length})`;
+    $('#filter-results-title').textContent = `Recherche : « ${q} » (${r.length})`;
     $('#load-more').style.display = 'none';
     $('#filter-results-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  } catch (e) { console.error('Recherche:', e); }
+  } catch (e) { console.error(e); }
 }
 
 /* ---------- Modale ---------- */
 async function openModal(item, type = 'movie') {
-  state.currentModal = { item, type, detail: null };
-  state.currentLang = 'vf';
-  state.currentSource = 'moviez';
-
+  state.currentModal = { item, type };
+  state.currentSource = 'vidlink'; state.currentLang = 'vf';
   const title = item.title || item.name || '';
   const date = item.release_date || item.first_air_date;
   const backdrop = item.backdrop_path || item.poster_path;
-
   $('#modal-hero').style.backgroundImage = backdrop ? `url('${backdropURL(backdrop)}')` : 'none';
   $('#modal-title').textContent = title;
-  $('#modal-overview').textContent = item.overview || 'Aucun synopsis disponible.';
-
-  const genres = genreNames(item.genre_ids);
+  $('#modal-overview').textContent = item.overview || 'Aucun synopsis.';
+  const g = genreNames(item.genre_ids);
   $('#modal-meta').innerHTML = `
     <span style="color:#f5c518;font-weight:700;">★ ${rating(item.vote_average)}</span>
-    <span>${yearOf(date)}</span>
-    ${genres.length ? `<span>${genres.join(' · ')}</span>` : ''}
-    <span>${type === 'tv' ? 'Série' : 'Film'}</span>
-    <span id="modal-availability" style="color:#9a9aa8;">· vérification…</span>`;
+    <span>${yearOf(date)}</span>${g.length ? `<span>${g.join(' · ')}</span>` : ''}
+    <span>${type === 'tv' ? 'Série' : 'Film'}</span>`;
+  $('#player-container').style.display = 'none'; $('#player-frame').src = 'about:blank';
+  $('#lang-bar').innerHTML = ''; $('#episode-bar').innerHTML = ''; $('#episode-bar').style.display = 'none';
+  $$('.source-btn').forEach((b) => b.classList.toggle('active', b.dataset.source === 'vidlink'));
+  $('#modal-overlay').classList.add('open'); document.body.style.overflow = 'hidden';
 
-  // Reset lecteur + zones
-  $('#player-container').style.display = 'none';
-  $('#player-frame').src = 'about:blank';
-  $('#lang-bar').innerHTML = '';
-  $('#episode-bar').innerHTML = '';
-  $('#episode-bar').style.display = 'none';
-  $$('.source-btn').forEach((b) => b.classList.toggle('active', b.dataset.source === 'moviez'));
-
-  $('#modal-overlay').classList.add('open');
-  document.body.style.overflow = 'hidden';
-
-  // Vérification Moviez (dispo, type, langues)
-  const check = await moviezCheck(item.id);
-  if (check && check.available) {
-    state.currentModal.detail = check;
-    $('#modal-availability').textContent = '· disponible sur MoviezAPI';
-    $('#modal-availability').style.color = '#4ade80';
-    renderLangBar(check.languages || []);
-    if (check.detectedType === 'series' && check.seasons) {
-      state.currentModal.type = 'series';
-      renderEpisodeBar(check.seasons);
-    }
-  } else {
-    $('#modal-availability').textContent = '· vérification MoviezAPI échouée (CineSrc reste dispo)';
-    $('#modal-availability').style.color = '#f87171';
+  // Langues / épisodes via TMDB (pas d'API check)
+  if (type === 'tv') {
+    try {
+      const d = await tmdb(`/tv/${item.id}`);
+      const seasons = d.number_of_seasons || 1;
+      renderEpisodeBar(seasons);
+    } catch { /* ignore */ }
   }
+  renderLangBar(['vf', 'vostfr', 'vo']);
 }
 
 function renderLangBar(langs) {
-  const bar = $('#lang-bar');
-  bar.innerHTML = '';
-  const unique = [...new Set(langs.map((l) => state.langLabels[l] ? l : 'multi'))];
-  if (!unique.length) return;
-  state.currentLang = unique.includes('vf') ? 'vf' : unique[0];
-  unique.forEach((l) => {
-    const btn = document.createElement('button');
-    btn.className = 'lang-btn' + (l === state.currentLang ? ' active' : '');
-    btn.textContent = state.langLabels[l] || l.toUpperCase();
-    btn.dataset.lang = l;
-    btn.addEventListener('click', () => {
+  const bar = $('#lang-bar'); bar.innerHTML = '';
+  state.currentLang = langs.includes('vf') ? 'vf' : langs[0];
+  langs.forEach((l) => {
+    const b = document.createElement('button');
+    b.className = 'lang-btn' + (l === state.currentLang ? ' active' : '');
+    b.textContent = state.langLabels[l] || l.toUpperCase();
+    b.dataset.lang = l;
+    b.addEventListener('click', () => {
       state.currentLang = l;
-      $$('.lang-btn', bar).forEach((b) => b.classList.toggle('active', b.dataset.lang === l));
+      $$('.lang-btn', bar).forEach((x) => x.classList.toggle('active', x.dataset.lang === l));
       if ($('#player-container').style.display !== 'none') playCurrent();
     });
-    bar.appendChild(btn);
+    bar.appendChild(b);
   });
 }
 
 function renderEpisodeBar(seasons) {
-  const bar = $('#episode-bar');
-  bar.style.display = 'flex';
-  bar.innerHTML = '';
-  const seasonSel = document.createElement('select');
-  seasonSel.id = 'season-select';
-  for (let s = 1; s <= seasons; s++) {
-    const opt = document.createElement('option');
-    opt.value = s; opt.textContent = `Saison ${s}`;
-    seasonSel.appendChild(opt);
-  }
-  const epSel = document.createElement('select');
-  epSel.id = 'episode-select';
-  const fillEpisodes = async (s) => {
-    epSel.innerHTML = '<option>…</option>';
+  const bar = $('#episode-bar'); bar.style.display = 'flex'; bar.innerHTML = '';
+  const ss = document.createElement('select'); ss.id = 'season-select';
+  for (let i = 1; i <= seasons; i++) { const o = document.createElement('option'); o.value = i; o.textContent = `Saison ${i}`; ss.appendChild(o); }
+  const es = document.createElement('select'); es.id = 'episode-select';
+  const fill = async (s) => {
+    es.innerHTML = '<option>…</option>';
     try {
       const d = await tmdb(`/tv/${state.currentModal.item.id}/season/${s}`);
-      epSel.innerHTML = '';
-      (d.episodes || []).forEach((ep) => {
-        const opt = document.createElement('option');
-        opt.value = ep.episode_number;
-        opt.textContent = `Ép. ${ep.episode_number} — ${ep.name || ''}`;
-        epSel.appendChild(opt);
-      });
-    } catch {
-      epSel.innerHTML = '';
-      for (let e = 1; e <= 20; e++) {
-        const opt = document.createElement('option');
-        opt.value = e; opt.textContent = `Épisode ${e}`;
-        epSel.appendChild(opt);
-      }
-    }
+      es.innerHTML = '';
+      (d.episodes || []).forEach((e) => { const o = document.createElement('option'); o.value = e.episode_number; o.textContent = `Ép. ${e.episode_number} — ${e.name || ''}`; es.appendChild(o); });
+    } catch { es.innerHTML = ''; for (let i = 1; i <= 20; i++) { const o = document.createElement('option'); o.value = i; o.textContent = `Épisode ${i}`; es.appendChild(o); } }
   };
-  seasonSel.addEventListener('change', () => fillEpisodes(seasonSel.value));
-  bar.appendChild(seasonSel);
-  bar.appendChild(epSel);
-  fillEpisodes(1);
+  ss.addEventListener('change', () => fill(ss.value));
+  bar.appendChild(ss); bar.appendChild(es); fill(1);
 }
 
 function closeModal() {
-  $('#modal-overlay').classList.remove('open');
-  document.body.style.overflow = '';
-  $('#player-frame').src = 'about:blank';
-  $('#player-container').style.display = 'none';
+  $('#modal-overlay').classList.remove('open'); document.body.style.overflow = '';
+  $('#player-frame').src = 'about:blank'; $('#player-container').style.display = 'none';
   state.currentModal = null;
 }
 
-/* ---------- Lecture ---------- */
+/* ---------- Construction des URLs ---------- */
 function buildEmbed(source) {
-  const ctx = state.currentModal;
-  if (!ctx) return null;
-  const { item } = ctx;
-  const type = ctx.detail?.detectedType === 'series' ? 'series' : (ctx.type === 'tv' ? 'series' : 'movie');
+  const ctx = state.currentModal; if (!ctx) return null;
+  const id = ctx.item.id;
+  const isTv = ctx.type === 'tv';
+  const season = $('#season-select')?.value || '1';
+  const ep = $('#episode-select')?.value || '1';
+  const lang = state.currentLang || 'vf';
 
   if (source === 'cinesrc') {
-    if (type === 'series') {
-      const season = $('#season-select')?.value || 1;
-      const ep = $('#episode-select')?.value || 1;
-      return `${CINESRC_BASE}/tv/${item.id}?s=${season}&e=${ep}`;
-    }
-    return `${CINESRC_BASE}/movie/${item.id}`;
+    return isTv
+      ? `https://cinesrc.st/embed/tv/${id}?s=${season}&e=${ep}&lang=${lang}`
+      : `https://cinesrc.st/embed/movie/${id}?lang=${lang}`;
   }
-
-  // MoviezAPI
-  if (!ctx.detail || !ctx.detail.embed) return null;
-  let embed = ctx.detail.embed;
-  if (type === 'series') {
-    const season = $('#season-select')?.value || 1;
-    const ep = $('#episode-select')?.value || 1;
-    embed = `${MOVIEZ_BASE}/serie/${item.id}/${season}/${ep}`;
-  }
-  if (state.currentLang) {
-    const sep = embed.includes('?') ? '&' : '?';
-    embed = `${embed}${sep}lang=${state.currentLang}`;
-  }
-  return embed;
+  // VidLink (défaut)
+  return isTv
+    ? `https://vidlink.pro/tv/${id}/${season}/${ep}?lang=${lang}`
+    : `https://vidlink.pro/movie/${id}?lang=${lang}`;
 }
 
 function playCurrent() {
-  const ctx = state.currentModal;
-  if (!ctx) return;
-
-  const type = ctx.detail?.detectedType === 'series' ? 'tv' : (ctx.type === 'tv' ? 'tv' : 'movie');
-  const season = $('#season-select')?.value || '1';
-  const episode = $('#episode-select')?.value || '1';
-  const lang = state.currentLang || 'vf';
-
-  // Notre lecteur maison (player.html) — sans pub, HLS.js + proxy backend
-  const playerUrl = `player.html?tmdb=${ctx.item.id}&type=${type}&season=${season}&episode=${episode}&lang=${lang}`;
-
-  const container = $('#player-container');
+  const embed = buildEmbed(state.currentSource);
+  if (!embed) return;
   const frame = $('#player-frame');
-  frame.src = playerUrl;
-  container.style.display = 'block';
-  container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  frame.src = embed;
+  $('#player-container').style.display = 'block';
+  $('#player-container').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 /* ---------- Écouteurs ---------- */
 function bindEvents() {
-  window.addEventListener('scroll', () => {
-    $('#navbar').classList.toggle('scrolled', window.scrollY > 30);
-  });
-
-  const input = $('#search-input');
-  input.addEventListener('input', (e) => {
-    clearTimeout(state.searchTimeout);
-    state.searchTimeout = setTimeout(() => performSearch(e.target.value), 400);
-  });
-
-  $$('.scroll-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const target = document.getElementById(btn.dataset.target);
-      if (!target) return;
-      const dir = btn.dataset.dir === 'left' ? -1 : 1;
-      target.scrollBy({ left: dir * target.clientWidth * 0.8, behavior: 'smooth' });
-    });
-  });
-
-  $('#hero-play').addEventListener('click', () => {
-    if (state.heroMovie) openModal(state.heroMovie, 'movie');
-  });
-  $('#hero-info').addEventListener('click', () => {
-    if (state.heroMovie) openModal(state.heroMovie, 'movie');
-  });
-
-  // Filtres
-  $('#apply-filters').addEventListener('click', () => {
-    $('#search-input').value = '';
-    loadDiscover(1, false);
-  });
-  $('#reset-filters').addEventListener('click', () => {
-    $('#filter-type').value = 'movie';
-    $('#filter-genre').value = '';
-    $('#filter-year').value = '';
-    $('#filter-sort').value = 'popularity.desc';
-    $('#filter-results-section').style.display = 'none';
-    $('#search-input').value = '';
-  });
-  $('#filter-type').addEventListener('change', () => {
-    // Les IDs de genres diffèrent entre films et séries ; on recharge la liste.
-    if (state.genreList.length) populateGenreSelect();
-  });
-  $('#load-more').addEventListener('click', () => {
-    if (!state.filterLoading && state.filterPage < state.filterTotalPages) {
-      loadDiscover(state.filterPage + 1, true);
-    }
-  });
-
-  // Modale
+  window.addEventListener('scroll', () => $('#navbar').classList.toggle('scrolled', window.scrollY > 30));
+  $('#search-input').addEventListener('input', (e) => { clearTimeout(state.searchTimeout); state.searchTimeout = setTimeout(() => performSearch(e.target.value), 400); });
+  $$('.scroll-btn').forEach((b) => b.addEventListener('click', () => {
+    const t = document.getElementById(b.dataset.target); if (!t) return;
+    t.scrollBy({ left: (b.dataset.dir === 'left' ? -1 : 1) * t.clientWidth * 0.8, behavior: 'smooth' });
+  }));
+  $('#hero-play').addEventListener('click', () => state.heroMovie && openModal(state.heroMovie, 'movie'));
+  $('#hero-info').addEventListener('click', () => state.heroMovie && openModal(state.heroMovie, 'movie'));
   $('#modal-close').addEventListener('click', closeModal);
-  $('#modal-overlay').addEventListener('click', (e) => {
-    if (e.target.id === 'modal-overlay') closeModal();
-  });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && $('#modal-overlay').classList.contains('open')) closeModal();
-  });
-
+  $('#modal-overlay').addEventListener('click', (e) => { if (e.target.id === 'modal-overlay') closeModal(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('#modal-overlay').classList.contains('open')) closeModal(); });
   $('#modal-play').addEventListener('click', playCurrent);
 
   // Sélecteur de source
-  $$('.source-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      state.currentSource = btn.dataset.source;
-      $$('.source-btn').forEach((b) => b.classList.toggle('active', b === btn));
-      // Si le lecteur est déjà ouvert, on recharge avec la nouvelle source
-      if ($('#player-container').style.display !== 'none') playCurrent();
-    });
-  });
+  $$('.source-btn').forEach((b) => b.addEventListener('click', () => {
+    state.currentSource = b.dataset.source;
+    $$('.source-btn').forEach((x) => x.classList.toggle('active', x === b));
+    if ($('#player-container').style.display !== 'none') playCurrent();
+  }));
 
   $('#modal-trailer').addEventListener('click', async () => {
     if (!state.currentModal) return;
     const { item, type } = state.currentModal;
-    const tmdbType = type === 'tv' || type === 'series' ? 'tv' : 'movie';
+    const tt = type === 'tv' ? 'tv' : 'movie';
     try {
-      const data = await tmdb(`/${tmdbType}/${item.id}/videos`);
-      const trailer = (data.results || []).find((v) => v.site === 'YouTube' && (v.type === 'Trailer' || v.type === 'Teaser'));
-      if (trailer) window.open(`https://www.youtube.com/watch?v=${trailer.key}`, '_blank');
-      else alert('Aucune bande-annonce disponible.');
-    } catch { alert('Impossible de charger la bande-annonce.'); }
+      const d = await tmdb(`/${tt}/${item.id}/videos`);
+      const tr = (d.results || []).find((v) => v.site === 'YouTube' && (v.type === 'Trailer' || v.type === 'Teaser'));
+      if (tr) window.open(`https://www.youtube.com/watch?v=${tr.key}`, '_blank'); else alert('Pas de bande-annonce.');
+    } catch { alert('Erreur bande-annonce.'); }
   });
+
+  // Filtres
+  $('#apply-filters').addEventListener('click', () => { $('#search-input').value = ''; loadDiscover(1, false); });
+  $('#reset-filters').addEventListener('click', () => {
+    $('#filter-type').value = 'movie'; $('#filter-genre').value = ''; $('#filter-year').value = ''; $('#filter-sort').value = 'popularity.desc';
+    $('#filter-results-section').style.display = 'none'; $('#search-input').value = '';
+  });
+  $('#filter-type').addEventListener('change', () => { if (state.genreList.length) populateGenreSelect(); });
+  $('#load-more').addEventListener('click', () => { if (!state.filterLoading && state.filterPage < state.filterTotalPages) loadDiscover(state.filterPage + 1, true); });
 }
 
 /* ---------- Init ---------- */
 async function init() {
-  bindEvents();
-  populateYearSelect();
-  await loadGenres();
-  await loadHero();
-  await Promise.all([
-    loadTrending(),
-    loadNewReleases(),
-    loadPopular(),
-    loadSeries(),
-    loadTopRated(),
-  ]);
+  bindEvents(); populateYearSelect(); await loadGenres(); await loadHero();
+  await Promise.all([loadTrending(), loadNewReleases(), loadPopular(), loadSeries(), loadTopRated()]);
 }
-
 document.addEventListener('DOMContentLoaded', init);
