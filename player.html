@@ -13,7 +13,7 @@
     video { object-fit: contain; }
     .overlay {
       position: absolute; inset: 0; display: grid; place-items: center;
-      color: #fff; font-size: 15px; background: rgba(0,0,0,.75);
+      color: #fff; font-size: 15px; background: rgba(0,0,0,.8);
       text-align: center; padding: 20px; z-index: 5;
     }
     .overlay.hidden { display: none; }
@@ -31,7 +31,7 @@
     #wrap:hover .controls, .controls.visible { opacity: 1; }
     .progress {
       width: 100%; height: 4px; background: rgba(255,255,255,.2);
-      border-radius: 2px; cursor: pointer; position: relative;
+      border-radius: 2px; cursor: pointer;
     }
     .progress-fill { height: 100%; background: #e50914; border-radius: 2px; width: 0; }
     .row { display: flex; align-items: center; gap: 12px; color: #fff; }
@@ -84,10 +84,10 @@
     const episode = p.get('episode') || '1';
     const lang = p.get('lang') || 'vf';
 
-    // ⚠️ CONFIGURE ICI TON CLOUDFLARE WORKER (voir cloudflare-worker.js)
+    // ⚠️ COLLE ICI L'URL DE TON WORKER CLOUDFLARE (voir README)
     // Exemple : 'https://deep1-proxy.monpseudo.workers.dev/?url='
     // Laisse vide ('') pour utiliser l'iframe MoviezAPI en fallback.
-    const PROXY_BASE = '';
+    const WORKER_URL = '';
 
     const video = document.getElementById('video');
     const fallback = document.getElementById('fallback');
@@ -121,11 +121,12 @@
     }
 
     async function getSources() {
-      const base = PROXY_BASE ? PROXY_BASE + encodeURIComponent(`https://nuviohub-v2.hf.space/?id=${tmdb}${type === 'tv' ? `&s=${season}&e=${episode}` : ''}`) : null;
-      if (!base) throw new Error('PROXY_BASE non configuré');
+      if (!WORKER_URL) throw new Error('WORKER_URL non configuré');
+      const target = `https://nuviohub-v2.hf.space/?id=${tmdb}${type === 'tv' ? `&s=${season}&e=${episode}` : ''}`;
+      const url = WORKER_URL + encodeURIComponent(target);
 
-      const res = await fetch(base);
-      if (!res.ok) throw new Error(`Proxy ${res.status}`);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Worker ${res.status}`);
       if (!res.body) throw new Error('Pas de flux');
 
       const reader = res.body.getReader();
@@ -157,22 +158,32 @@
       setStatus('Chargement du flux…');
       retry.style.display = 'none';
       overlay.classList.remove('hidden');
-      if (!PROXY_BASE) {
-        // Pas de proxy configuré → iframe MoviezAPI (fonctionne immédiatement)
+
+      if (!WORKER_URL) {
         useFallbackIframe();
         return;
       }
+
       try {
         const sources = await getSources();
         const src = sources[0];
+
         if (hls) { hls.destroy(); hls = null; }
         video.style.display = 'block';
         fallback.style.display = 'none';
         controls.style.display = 'flex';
 
         if (window.Hls && Hls.isSupported()) {
-          hls = new Hls({ enableWorker: true });
-          hls.loadSource(src.url);
+          hls = new Hls({
+            enableWorker: true,
+            // Proxifie chaque segment via le Worker pour éviter CORS
+            xhrSetup: (xhr, url) => {
+              if (url.includes('.workers.dev')) return;
+              const proxied = WORKER_URL + encodeURIComponent(url);
+              xhr.open('GET', proxied, true);
+            },
+          });
+          hls.loadSource(WORKER_URL + encodeURIComponent(src.url));
           hls.attachMedia(video);
           hls.on(Hls.Events.MANIFEST_PARSED, () => {
             populateQualities(sources, src);
@@ -186,7 +197,7 @@
             }
           });
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-          video.src = src.url;
+          video.src = WORKER_URL + encodeURIComponent(src.url);
           video.addEventListener('loadedmetadata', () => {
             populateQualities(sources, src);
             hideOverlay();
@@ -213,9 +224,9 @@
       });
       qualitySel.onchange = () => {
         const newSrc = sources[parseInt(qualitySel.value, 10)];
-        if (!newSrc) return;
-        if (hls) { hls.loadSource(newSrc.url); hls.attachMedia(video); }
-        else video.src = newSrc.url;
+        if (!newSrc || !hls) return;
+        hls.loadSource(WORKER_URL + encodeURIComponent(newSrc.url));
+        hls.attachMedia(video);
         video.play().catch(() => {});
       };
     }

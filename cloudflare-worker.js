@@ -1,15 +1,13 @@
 /**
  * Deep1 CORS Proxy — Cloudflare Worker
- * Déploiement : https://workers.cloudflare.com (gratuit, 100k req/jour)
- * 1. Créer un Worker, coller ce code, déployer.
- * 2. Récupérer l'URL : https://<nom>.<pseudo>.workers.dev
- * 3. Dans player.html, mettre :
- *    const PROXY_BASE = 'https://<nom>.<pseudo>.workers.dev/?url=';
+ * Déploiement sans compte : npx wrangler deploy --temporary
+ * Puis cliquer sur la Claim URL pour rendre le Worker permanent (gratuit).
  */
 export default {
   async fetch(request) {
     const url = new URL(request.url);
-    const target = url.searchParams.get('url');
+    // Supporte ?url= et ?uri= (compatibilité cors-anywhere)
+    const target = url.searchParams.get('url') || url.searchParams.get('uri');
     if (!target) {
       return new Response(JSON.stringify({ error: 'Missing ?url=' }), {
         status: 400,
@@ -17,7 +15,6 @@ export default {
       });
     }
 
-    // CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, {
         status: 204,
@@ -45,8 +42,8 @@ export default {
       headers.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
       headers.set('Access-Control-Allow-Headers', '*');
       headers.set('Access-Control-Expose-Headers', '*');
-      // On laisse le Content-Type d'origine (text/event-stream pour le SSE)
-      // et on stream le body sans le bufferiser.
+
+      // On stream le body sans le bufferiser (SSE et HLS passent tels quels)
       return new Response(upstream.body, { status: upstream.status, headers });
     } catch (e) {
       return new Response(JSON.stringify({ error: e.message }), {
