@@ -9,7 +9,8 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: #000; font-family: 'Inter', system-ui, sans-serif; overflow: hidden; }
     #wrap { position: relative; width: 100vw; height: 100vh; background: #000; }
-    video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+    video, iframe { width: 100%; height: 100%; border: none; background: #000; }
+    video { object-fit: contain; }
     .overlay {
       position: absolute; inset: 0; display: grid; place-items: center;
       color: #fff; font-size: 15px; background: rgba(0,0,0,.75);
@@ -51,7 +52,8 @@
 </head>
 <body>
   <div id="wrap">
-    <video id="video" playsinline></video>
+    <video id="video" playsinline style="display:none;"></video>
+    <iframe id="fallback" style="display:none;" allow="autoplay; fullscreen; encrypted-media" sandbox="allow-scripts allow-same-origin allow-presentation" referrerpolicy="no-referrer"></iframe>
 
     <div class="overlay" id="overlay">
       <div>
@@ -60,7 +62,7 @@
       </div>
     </div>
 
-    <div class="controls" id="controls">
+    <div class="controls" id="controls" style="display:none;">
       <div class="progress" id="progress"><div class="progress-fill" id="fill"></div></div>
       <div class="row">
         <button id="play">▶</button>
@@ -80,8 +82,15 @@
     const type = p.get('type') || 'movie';
     const season = p.get('season') || '1';
     const episode = p.get('episode') || '1';
+    const lang = p.get('lang') || 'vf';
+
+    // ⚠️ CONFIGURE ICI TON CLOUDFLARE WORKER (voir cloudflare-worker.js)
+    // Exemple : 'https://deep1-proxy.monpseudo.workers.dev/?url='
+    // Laisse vide ('') pour utiliser l'iframe MoviezAPI en fallback.
+    const PROXY_BASE = '';
 
     const video = document.getElementById('video');
+    const fallback = document.getElementById('fallback');
     const overlay = document.getElementById('overlay');
     const status = document.getElementById('status');
     const retry = document.getElementById('retry');
@@ -100,14 +109,24 @@
     function setStatus(msg) { status.textContent = msg; overlay.classList.remove('hidden'); }
     function hideOverlay() { overlay.classList.add('hidden'); }
 
-    async function getSources() {
-      const url = type === 'tv'
-        ? `https://nuviohub-v2.hf.space/?id=${tmdb}&s=${season}&e=${episode}`
-        : `https://nuviohub-v2.hf.space/?id=${tmdb}`;
+    function useFallbackIframe() {
+      video.style.display = 'none';
+      fallback.style.display = 'block';
+      controls.style.display = 'none';
+      const embed = type === 'tv'
+        ? `https://api.moviez.ac/serie/${tmdb}/${season}/${episode}?lang=${lang}`
+        : `https://api.moviez.ac/${tmdb}?lang=${lang}`;
+      fallback.src = embed;
+      hideOverlay();
+    }
 
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`NuvioHub ${res.status}`);
-      if (!res.body) throw new Error('Pas de flux de données');
+    async function getSources() {
+      const base = PROXY_BASE ? PROXY_BASE + encodeURIComponent(`https://nuviohub-v2.hf.space/?id=${tmdb}${type === 'tv' ? `&s=${season}&e=${episode}` : ''}`) : null;
+      if (!base) throw new Error('PROXY_BASE non configuré');
+
+      const res = await fetch(base);
+      if (!res.ok) throw new Error(`Proxy ${res.status}`);
+      if (!res.body) throw new Error('Pas de flux');
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -125,26 +144,34 @@
           if (!line) continue;
           try {
             const obj = JSON.parse(line.slice(6));
-            if (obj.type === 'source' && obj.source?.url) {
-              sources.push(obj.source);
-            }
+            if (obj.type === 'source' && obj.source?.url) sources.push(obj.source);
           } catch {}
         }
         if (sources.length) { try { reader.cancel(); } catch {} break; }
       }
-      if (!sources.length) throw new Error('Aucune source disponible');
+      if (!sources.length) throw new Error('Aucune source');
       return sources;
     }
 
     async function load() {
       setStatus('Chargement du flux…');
       retry.style.display = 'none';
+      overlay.classList.remove('hidden');
+      if (!PROXY_BASE) {
+        // Pas de proxy configuré → iframe MoviezAPI (fonctionne immédiatement)
+        useFallbackIframe();
+        return;
+      }
       try {
         const sources = await getSources();
         const src = sources[0];
         if (hls) { hls.destroy(); hls = null; }
+        video.style.display = 'block';
+        fallback.style.display = 'none';
+        controls.style.display = 'flex';
+
         if (window.Hls && Hls.isSupported()) {
-          hls = new Hls({ enableWorker: true, lowLatencyMode: false });
+          hls = new Hls({ enableWorker: true });
           hls.loadSource(src.url);
           hls.attachMedia(video);
           hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -153,7 +180,10 @@
             video.play().catch(() => {});
           });
           hls.on(Hls.Events.ERROR, (_, data) => {
-            if (data.fatal) setStatus('Erreur de lecture. Réessaie avec une autre qualité.');
+            if (data.fatal) {
+              setStatus('Erreur de lecture. Passage en mode iframe…');
+              setTimeout(useFallbackIframe, 800);
+            }
           });
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
           video.src = src.url;
@@ -163,12 +193,12 @@
             video.play().catch(() => {});
           });
         } else {
-          throw new Error('HLS non supporté par ce navigateur');
+          throw new Error('HLS non supporté');
         }
       } catch (e) {
         console.error(e);
-        setStatus('Impossible de charger le flux. ' + e.message);
-        retry.style.display = 'inline-block';
+        setStatus('Flux natif indisponible. Passage en mode iframe…');
+        setTimeout(useFallbackIframe, 600);
       }
     }
 
@@ -190,7 +220,6 @@
       };
     }
 
-    // Contrôles
     playBtn.onclick = () => video.paused ? video.play() : video.pause();
     video.onplay = () => playBtn.textContent = '⏸';
     video.onpause = () => playBtn.textContent = '▶';
