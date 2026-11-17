@@ -1,126 +1,138 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Minecraft – Explorez l'infini</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@south-paw/typeface-minecraft@1.0.0/index.css">
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Deep1 – Streaming</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
 </head>
 <body>
-  <div class="bg-layer"></div>
-  <div class="bg-overlay"></div>
-
-  <header class="header">
-    <div class="container nav-container">
-      <a href="#accueil" class="logo">MINECRAFT</a>
-      <nav>
-        <input type="checkbox" id="menu-toggle" class="menu-toggle">
-        <label for="menu-toggle" class="hamburger">&#9776;</label>
-        <ul class="nav-list">
-          <li><a href="#accueil">Accueil</a></li>
-          <li><a href="#jeux">Jeux</a></li>
-          <li><a href="#actualites">Actualités</a></li>
-          <li><a href="#communaute">Communauté</a></li>
-          <li><a href="#support">Support</a></li>
-        </ul>
+  <!-- Navigation -->
+  <header class="navbar" id="navbar">
+    <div class="navbar-inner">
+      <a href="#" class="logo">DEEP<span>1</span></a>
+      <nav class="nav-links">
+        <a href="#accueil" class="active">Accueil</a>
+        <a href="#tendances">Tendances</a>
+        <a href="#nouveautes">Nouveautés</a>
+        <a href="#series">Séries</a>
       </nav>
+      <div class="nav-actions">
+        <div class="search-box">
+          <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" id="search-input" placeholder="Rechercher un film, une série…" />
+        </div>
+        <div class="avatar">K</div>
+      </div>
     </div>
   </header>
 
-  <main>
-    <section class="hero" id="accueil">
-      <div class="hero-content">
-        <p class="hero-tag">The Wild Update</p>
-        <h1 class="hero-title">Explorez<br><span class="gradient-text">l'infini</span></h1>
-        <p class="hero-subtitle">Des forêts luxuriantes aux profondeurs obscures, chaque bloc cache une nouvelle aventure.</p>
-        <div class="hero-buttons">
-          <a href="#jeux" class="btn btn-primary">Jouer maintenant</a>
-          <a href="#actualites" class="btn btn-ghost">Voir les nouveautés</a>
+  <!-- Hero -->
+  <section class="hero" id="accueil">
+    <div class="hero-backdrop" id="hero-backdrop"></div>
+    <div class="hero-gradient"></div>
+    <div class="hero-content">
+      <span class="hero-badge">À la une</span>
+      <h1 class="hero-title" id="hero-title">Chargement…</h1>
+      <p class="hero-overview" id="hero-overview"></p>
+      <div class="hero-meta" id="hero-meta"></div>
+      <div class="hero-actions">
+        <button class="btn btn-primary" id="hero-play">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          Lecture
+        </button>
+        <button class="btn btn-secondary" id="hero-info">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          Plus d'infos
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Rangées de films -->
+  <main class="main-content">
+    <section class="row-section" id="tendances">
+      <div class="row-header">
+        <h2>Tendances</h2>
+        <div class="row-controls">
+          <button class="scroll-btn" data-dir="left" data-target="row-tendances">‹</button>
+          <button class="scroll-btn" data-dir="right" data-target="row-tendances">›</button>
         </div>
       </div>
-      <a href="#jeux" class="scroll-hint">&#9660;</a>
+      <div class="row-scroll" id="row-tendances"></div>
     </section>
 
-    <section class="section" id="jeux">
-      <div class="container">
-        <h2 class="section-title">Choisissez votre aventure</h2>
-        <p class="section-sub">Trois univers, une même passion du bloc.</p>
-        <div class="grid">
-          <div class="card glass">
-            <div class="card-icon">⛏</div>
-            <h3>Java Edition</h3>
-            <p>La version originale pour PC. Mods, serveurs, redstone — la liberté totale.</p>
-            <a href="#" class="btn btn-primary btn-sm">Découvrir</a>
-          </div>
-          <div class="card glass">
-            <div class="card-icon">🌍</div>
-            <h3>Bedrock Edition</h3>
-            <p>Console, mobile, Windows. Cross-play avec tous vos amis, où qu'ils soient.</p>
-            <a href="#" class="btn btn-primary btn-sm">Découvrir</a>
-          </div>
-          <div class="card glass">
-            <div class="card-icon">⚔</div>
-            <h3>Dungeons</h3>
-            <p>Action-aventure en donjon. Combattez l'Arch-illager et sauvez le royaume.</p>
-            <a href="#" class="btn btn-primary btn-sm">Découvrir</a>
-          </div>
+    <section class="row-section" id="nouveautes">
+      <div class="row-header">
+        <h2>Nouveautés</h2>
+        <div class="row-controls">
+          <button class="scroll-btn" data-dir="left" data-target="row-nouveautes">‹</button>
+          <button class="scroll-btn" data-dir="right" data-target="row-nouveautes">›</button>
         </div>
       </div>
+      <div class="row-scroll" id="row-nouveautes"></div>
     </section>
 
-    <section class="section" id="actualites">
-      <div class="container">
-        <h2 class="section-title">Dernières actualités</h2>
-        <p class="section-sub">Ce qui se passe dans le monde cubique.</p>
-        <div class="news-grid">
-          <article class="news-card glass">
-            <span class="news-tag">Mise à jour</span>
-            <h3>Patch 1.21 — Tricky Trials</h3>
-            <p>Nouvelles armes, chambres d'épreuves et un boss inédit vous attendent.</p>
-            <a href="#" class="read-more">Lire la suite &rarr;</a>
-          </article>
-          <article class="news-card glass">
-            <span class="news-tag">Événement</span>
-            <h3>Minecraft Live 2026</h3>
-            <p>Revivez les annonces majeures, les mob votes et les surprises de l'événement.</p>
-            <a href="#" class="read-more">Lire la suite &rarr;</a>
-          </article>
-          <article class="news-card glass">
-            <span class="news-tag">Communauté</span>
-            <h3>Builds de la semaine</h3>
-            <p>Les plus belles créations partagées par la communauté cette semaine.</p>
-            <a href="#" class="read-more">Lire la suite &rarr;</a>
-          </article>
+    <section class="row-section">
+      <div class="row-header">
+        <h2>Films populaires</h2>
+        <div class="row-controls">
+          <button class="scroll-btn" data-dir="left" data-target="row-populaires">‹</button>
+          <button class="scroll-btn" data-dir="right" data-target="row-populaires">›</button>
         </div>
       </div>
+      <div class="row-scroll" id="row-populaires"></div>
     </section>
 
-    <section class="section" id="communaute">
-      <div class="container cta-block glass">
-        <h2 class="section-title">Rejoignez la communauté</h2>
-        <p class="section-sub">Des millions de joueurs créent, partagent et explorent ensemble.</p>
-        <div class="hero-buttons">
-          <a href="#" class="btn btn-primary">Forum</a>
-          <a href="#" class="btn btn-ghost">Discord</a>
+    <section class="row-section" id="series">
+      <div class="row-header">
+        <h2>Séries</h2>
+        <div class="row-controls">
+          <button class="scroll-btn" data-dir="left" data-target="row-series">‹</button>
+          <button class="scroll-btn" data-dir="right" data-target="row-series">›</button>
         </div>
       </div>
+      <div class="row-scroll" id="row-series"></div>
+    </section>
+
+    <section class="row-section">
+      <div class="row-header">
+        <h2>Mieux notés</h2>
+        <div class="row-controls">
+          <button class="scroll-btn" data-dir="left" data-target="row-top">‹</button>
+          <button class="scroll-btn" data-dir="right" data-target="row-top">›</button>
+        </div>
+      </div>
+      <div class="row-scroll" id="row-top"></div>
     </section>
   </main>
 
-  <footer class="footer" id="support">
-    <div class="container">
-      <p>&copy; 2026 — Clone non officiel de Minecraft · Démo éducative</p>
-      <p class="muted">Les marques et contenus appartiennent à Mojang Studios / Microsoft.</p>
+  <!-- Modale de détails / lecture -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal" id="modal">
+      <button class="modal-close" id="modal-close">✕</button>
+      <div class="modal-hero" id="modal-hero"></div>
+      <div class="modal-body">
+        <h2 class="modal-title" id="modal-title"></h2>
+        <div class="modal-meta" id="modal-meta"></div>
+        <p class="modal-overview" id="modal-overview"></p>
+        <div class="modal-actions">
+          <button class="btn btn-primary" id="modal-play">▶ Regarder</button>
+          <button class="btn btn-secondary" id="modal-trailer">Bande-annonce</button>
+        </div>
+        <div class="player-container" id="player-container" style="display:none;">
+          <iframe id="player-frame" allowfullscreen allow="autoplay; fullscreen"></iframe>
+        </div>
+      </div>
     </div>
+  </div>
+
+  <footer class="footer">
+    <p>Deep1 — Démo de streaming. Données : TMDB · Lecteur : MoviezAPI.</p>
   </footer>
 
-  <script>
-    document.querySelectorAll('.nav-list a').forEach(link => {
-      link.addEventListener('click', () => {
-        document.getElementById('menu-toggle').checked = false;
-      });
-    });
-  </script>
+  <script src="app.js"></script>
 </body>
 </html>
