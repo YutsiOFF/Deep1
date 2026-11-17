@@ -8,7 +8,7 @@ const state = {
   searchTimeout: null,
   genreCache: null,
   genreList: [],
-  currentSource: 'vidlink',
+  currentSource: 'moviez',
   filterPage: 1,
   filterTotalPages: 1,
   filterItems: [],
@@ -177,7 +177,7 @@ async function openModal(item, type = 'movie') {
     <span>${type === 'tv' ? 'Série' : 'Film'}</span>`;
   $('#player-container').style.display = 'none'; $('#player-frame').src = 'about:blank';
   $('#lang-bar').innerHTML = ''; $('#episode-bar').innerHTML = ''; $('#episode-bar').style.display = 'none';
-  $$('.source-btn').forEach((b) => b.classList.toggle('active', b.dataset.source === 'vidlink'));
+  $$('.source-btn').forEach((b) => b.classList.toggle('active', b.dataset.source === 'moviez'));
   $('#modal-overlay').classList.add('open'); document.body.style.overflow = 'hidden';
 
   // Langues / épisodes via TMDB (pas d'API check)
@@ -245,10 +245,11 @@ function buildEmbed(source) {
       ? `https://cinesrc.st/embed/tv/${id}?s=${season}&e=${ep}&lang=${lang}`
       : `https://cinesrc.st/embed/movie/${id}?lang=${lang}`;
   }
-  // VidLink (défaut)
-  return isTv
-    ? `https://vidlink.pro/tv/${id}/${season}/${ep}?lang=${lang}`
-    : `https://vidlink.pro/movie/${id}?lang=${lang}`;
+  // MoviezAPI (défaut, testé)
+  if (isTv) {
+    return `https://api.moviez.ac/serie/${id}/${season}/${ep}?lang=${lang}`;
+  }
+  return `https://api.moviez.ac/${id}?lang=${lang}`;
 }
 
 function playCurrent() {
