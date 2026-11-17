@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Deep1 – Lecteur</title>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #000; font-family: 'Inter', system-ui, sans-serif; overflow: hidden; }
+    #wrap { position: relative; width: 100vw; height: 100vh; background: #000; }
+    video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+    .overlay {
+      position: absolute; inset: 0; display: grid; place-items: center;
+      color: #fff; font-size: 15px; background: rgba(0,0,0,.75);
+      text-align: center; padding: 20px; z-index: 5;
+    }
+    .overlay.hidden { display: none; }
+    .overlay button {
+      margin-top: 14px; padding: 10px 22px; border-radius: 8px;
+      background: #e50914; color: #fff; border: none; font-size: 14px;
+      font-weight: 700; cursor: pointer;
+    }
+    .controls {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: linear-gradient(to top, rgba(0,0,0,.9), transparent);
+      padding: 50px 18px 14px; display: flex; flex-direction: column; gap: 8px;
+      opacity: 0; transition: opacity .25s; z-index: 10;
+    }
+    #wrap:hover .controls, .controls.visible { opacity: 1; }
+    .progress {
+      width: 100%; height: 4px; background: rgba(255,255,255,.2);
+      border-radius: 2px; cursor: pointer; position: relative;
+    }
+    .progress-fill { height: 100%; background: #e50914; border-radius: 2px; width: 0; }
+    .row { display: flex; align-items: center; gap: 12px; color: #fff; }
+    .row button {
+      background: none; border: none; color: #fff; cursor: pointer;
+      font-size: 18px; padding: 4px; opacity: .9;
+    }
+    .row button:hover { opacity: 1; }
+    .time { font-size: 12px; color: #ccc; min-width: 90px; }
+    .spacer { flex: 1; }
+    select, input[type=range] { accent-color: #e50914; }
+    select {
+      background: rgba(255,255,255,.1); color: #fff;
+      border: 1px solid rgba(255,255,255,.2); border-radius: 6px;
+      padding: 4px 8px; font-size: 12px; outline: none; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <video id="video" playsinline></video>
+
+    <div class="overlay" id="overlay">
+      <div>
+        <div id="status">Chargement du flux…</div>
+        <button id="retry" style="display:none;">Réessayer</button>
+      </div>
+    </div>
+
+    <div class="controls" id="controls">
+      <div class="progress" id="progress"><div class="progress-fill" id="fill"></div></div>
+      <div class="row">
+        <button id="play">▶</button>
+        <span class="time" id="time">0:00 / 0:00</span>
+        <div class="spacer"></div>
+        <select id="quality"></select>
+        <input type="range" id="volume" min="0" max="1" step="0.05" value="1" style="width:70px" />
+        <button id="mute">🔊</button>
+        <button id="fs">⛶</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const p = new URLSearchParams(location.search);
+    const tmdb = p.get('tmdb');
+    const type = p.get('type') || 'movie';
+    const season = p.get('season') || '1';
+    const episode = p.get('episode') || '1';
+
+    const video = document.getElementById('video');
+    const overlay = document.getElementById('overlay');
+    const status = document.getElementById('status');
+    const retry = document.getElementById('retry');
+    const playBtn = document.getElementById('play');
+    const timeEl = document.getElementById('time');
+    const progress = document.getElementById('progress');
+    const fill = document.getElementById('fill');
+    const volume = document.getElementById('volume');
+    const muteBtn = document.getElementById('mute');
+    const fsBtn = document.getElementById('fs');
+    const qualitySel = document.getElementById('quality');
+    const controls = document.getElementById('controls');
+
+    let hls = null;
+
+    function setStatus(msg) { status.textContent = msg; overlay.classList.remove('hidden'); }
+    function hideOverlay() { overlay.classList.add('hidden'); }
+
+    async function getSources() {
+      const url = type === 'tv'
+        ? `https://nuviohub-v2.hf.space/?id=${tmdb}&s=${season}&e=${episode}`
+        : `https://nuviohub-v2.hf.space/?id=${tmdb}`;
+
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`NuvioHub ${res.status}`);
+      if (!res.body) throw new Error('Pas de flux de données');
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      const sources = [];
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop() || '';
+        for (const part of parts) {
+          const line = part.split('\n').find(l => l.startsWith('data: '));
+          if (!line) continue;
+          try {
+            const obj = JSON.parse(line.slice(6));
+            if (obj.type === 'source' && obj.source?.url) {
+              sources.push(obj.source);
+            }
+          } catch {}
+        }
+        if (sources.length) { try { reader.cancel(); } catch {} break; }
+      }
+      if (!sources.length) throw new Error('Aucune source disponible');
+      return sources;
+    }
+
+    async function load() {
+      setStatus('Chargement du flux…');
+      retry.style.display = 'none';
+      try {
+        const sources = await getSources();
+        const src = sources[0];
+        if (hls) { hls.destroy(); hls = null; }
+        if (window.Hls && Hls.isSupported()) {
+          hls = new Hls({ enableWorker: true, lowLatencyMode: false });
+          hls.loadSource(src.url);
+          hls.attachMedia(video);
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            populateQualities(sources, src);
+            hideOverlay();
+            video.play().catch(() => {});
+          });
+          hls.on(Hls.Events.ERROR, (_, data) => {
+            if (data.fatal) setStatus('Erreur de lecture. Réessaie avec une autre qualité.');
+          });
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          video.src = src.url;
+          video.addEventListener('loadedmetadata', () => {
+            populateQualities(sources, src);
+            hideOverlay();
+            video.play().catch(() => {});
+          });
+        } else {
+          throw new Error('HLS non supporté par ce navigateur');
+        }
+      } catch (e) {
+        console.error(e);
+        setStatus('Impossible de charger le flux. ' + e.message);
+        retry.style.display = 'inline-block';
+      }
+    }
+
+    function populateQualities(sources, current) {
+      qualitySel.innerHTML = '';
+      sources.forEach((s, i) => {
+        const o = document.createElement('option');
+        o.value = i;
+        o.textContent = s.quality || `Source ${i+1}`;
+        if (s.url === current.url) o.selected = true;
+        qualitySel.appendChild(o);
+      });
+      qualitySel.onchange = () => {
+        const newSrc = sources[parseInt(qualitySel.value, 10)];
+        if (!newSrc) return;
+        if (hls) { hls.loadSource(newSrc.url); hls.attachMedia(video); }
+        else video.src = newSrc.url;
+        video.play().catch(() => {});
+      };
+    }
+
+    // Contrôles
+    playBtn.onclick = () => video.paused ? video.play() : video.pause();
+    video.onplay = () => playBtn.textContent = '⏸';
+    video.onpause = () => playBtn.textContent = '▶';
+    video.ontimeupdate = () => {
+      if (!video.duration) return;
+      fill.style.width = (video.currentTime / video.duration * 100) + '%';
+      timeEl.textContent = `${fmt(video.currentTime)} / ${fmt(video.duration)}`;
+    };
+    progress.onclick = (e) => {
+      const r = progress.getBoundingClientRect();
+      video.currentTime = ((e.clientX - r.left) / r.width) * video.duration;
+    };
+    volume.oninput = () => video.volume = volume.value;
+    muteBtn.onclick = () => {
+      video.muted = !video.muted;
+      muteBtn.textContent = video.muted ? '🔇' : '🔊';
+    };
+    fsBtn.onclick = () => {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+      else document.exitFullscreen();
+    };
+    document.addEventListener('mousemove', () => {
+      controls.classList.add('visible');
+      clearTimeout(window._hide);
+      window._hide = setTimeout(() => controls.classList.remove('visible'), 3000);
+    });
+
+    function fmt(s) {
+      const m = Math.floor(s / 60), sec = Math.floor(s % 60).toString().padStart(2, '0');
+      return `${m}:${sec}`;
+    }
+
+    retry.onclick = load;
+    load();
+  </script>
+</body>
+</html>

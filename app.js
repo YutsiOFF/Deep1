@@ -177,7 +177,7 @@ async function openModal(item, type = 'movie') {
     <span>${type === 'tv' ? 'Série' : 'Film'}</span>`;
   $('#player-container').style.display = 'none'; $('#player-frame').src = 'about:blank';
   $('#lang-bar').innerHTML = ''; $('#episode-bar').innerHTML = ''; $('#episode-bar').style.display = 'none';
-  $$('.source-btn').forEach((b) => b.classList.toggle('active', b.dataset.source === 'moviez'));
+  // (sélecteur de source supprimé — NuvioHub fournit le flux direct)
   $('#modal-overlay').classList.add('open'); document.body.style.overflow = 'hidden';
 
   // Langues / épisodes via TMDB (pas d'API check)
@@ -276,12 +276,7 @@ function bindEvents() {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('#modal-overlay').classList.contains('open')) closeModal(); });
   $('#modal-play').addEventListener('click', playCurrent);
 
-  // Sélecteur de source
-  $$('.source-btn').forEach((b) => b.addEventListener('click', () => {
-    state.currentSource = b.dataset.source;
-    $$('.source-btn').forEach((x) => x.classList.toggle('active', x === b));
-    if ($('#player-container').style.display !== 'none') playCurrent();
-  }));
+  // (plus de sélecteur de source : NuvioHub = flux direct natif)
 
   $('#modal-trailer').addEventListener('click', async () => {
     if (!state.currentModal) return;
