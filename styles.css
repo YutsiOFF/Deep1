@@ -17,6 +17,7 @@ body {
   background: var(--bg);
   color: var(--text);
   overflow-x: hidden;
+  padding-top: var(--nav-h);
 }
 img { display: block; max-width: 100%; }
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
@@ -30,8 +31,8 @@ a { color: inherit; text-decoration: none; }
 }
 .navbar.scrolled { background: rgba(11,11,15,.92); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,.06); }
 .navbar-inner {
-  max-width: 1400px; margin: 0 auto; height: 100%;
-  display: flex; align-items: center; gap: 32px; padding: 0 32px;
+  max-width: 1600px; margin: 0 auto; height: 100%;
+  display: flex; align-items: center; gap: 18px; padding: 0 24px;
 }
 .logo { font-size: 26px; font-weight: 800; letter-spacing: -1px; }
 .logo span { color: var(--accent); }
@@ -48,7 +49,7 @@ a { color: inherit; text-decoration: none; }
 .search-icon { color: var(--text-dim); flex-shrink: 0; }
 .search-box input {
   background: none; border: none; outline: none; color: var(--text);
-  font-size: 13px; width: 200px;
+  font-size: 13px; width: 150px;
 }
 .search-box input::placeholder { color: var(--text-dim); }
 .avatar {
@@ -243,4 +244,54 @@ a { color: inherit; text-decoration: none; }
   .btn-apply, .btn-reset { padding: 8px 14px; font-size: 12px; }
   .modal-body { padding: 0 18px 24px; }
   .modal-hero { height: 200px; }
+}
+/* ===== Filtres intégrés dans la navbar ===== */
+.filters-inline {
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+}
+.filters-inline select {
+  background: rgba(255,255,255,.08);
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 8px;
+  padding: 6px 9px;
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+  max-width: 135px;
+  transition: border .2s;
+}
+.filters-inline select:focus { border-color: rgba(255,255,255,.4); }
+.filters-inline select:hover { border-color: rgba(255,255,255,.25); }
+.btn-apply-mini {
+  background: var(--accent); color: #fff; border: none; border-radius: 8px;
+  padding: 6px 12px; font-size: 12px; font-weight: 700; cursor: pointer;
+  transition: background .2s;
+}
+.btn-apply-mini:hover { background: var(--accent-hover); }
+.btn-reset-mini {
+  background: rgba(255,255,255,.08); color: var(--text);
+  border: 1px solid rgba(255,255,255,.12); border-radius: 8px;
+  padding: 5px 10px; font-size: 14px; cursor: pointer;
+  transition: background .2s;
+}
+.btn-reset-mini:hover { background: rgba(255,255,255,.16); }
+
+@media (max-width: 1280px) {
+  .nav-links { display: none; }
+  .filters-inline select { max-width: 115px; }
+}
+@media (max-width: 900px) {
+  .filters-inline { overflow-x: auto; scrollbar-width: none; max-width: 55vw; }
+  .filters-inline::-webkit-scrollbar { display: none; }
+  .filters-inline select { flex-shrink: 0; }
+  .search-box input { width: 100px; font-size: 12px; }
+}
+@media (max-width: 640px) {
+  .navbar-inner { padding: 0 12px; gap: 10px; }
+  .logo { font-size: 20px; }
+  .avatar { width: 30px; height: 30px; font-size: 13px; }
+  .search-box { display: none; }
+  .filters-inline { max-width: 75vw; }
 }
