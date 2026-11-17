@@ -1,18 +1,26 @@
 /* ============================================================
    Deep1 — Streaming UI
-   Données : TMDB  ·  Lecteur : api.moviez.ac
+   Données : TMDB Discover (filtres genre/année/tri)
+   Lecteurs : MoviezAPI + CineSrc (ad-minimal)
    ============================================================ */
 
 const TMDB_API_KEY = 'ec801beca6ce458e2a220a27ee334746';
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 const IMG_BASE = 'https://image.tmdb.org/t/p';
-const PLAYER_BASE = 'https://api.moviez.ac';
+const MOVIEZ_BASE = 'https://api.moviez.ac';
+const CINESRC_BASE = 'https://cinesrc.st/embed';
 
 const state = {
   heroMovie: null,
-  currentModal: null,     // { item, type, detail }
+  currentModal: null,
   searchTimeout: null,
   genreCache: null,
+  genreList: [],
+  currentSource: 'moviez',
+  filterPage: 1,
+  filterTotalPages: 1,
+  filterItems: [],
+  filterLoading: false,
   langLabels: { vf: 'VF', vostfr: 'VOSTFR', vo: 'VO', en: 'VO', multi: 'Multi' },
   currentLang: 'vf',
 };
@@ -25,7 +33,9 @@ async function tmdb(path, params = {}) {
   const url = new URL(`${TMDB_BASE}${path}`);
   url.searchParams.set('api_key', TMDB_API_KEY);
   url.searchParams.set('language', 'fr-FR');
-  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== '' && v != null) url.searchParams.set(k, v);
+  });
   const res = await fetch(url);
   if (!res.ok) throw new Error(`TMDB ${res.status} sur ${path}`);
   return res.json();
@@ -33,7 +43,7 @@ async function tmdb(path, params = {}) {
 
 async function moviezCheck(tmdbId) {
   try {
-    const res = await fetch(`${PLAYER_BASE}/api/check/${tmdbId}`);
+    const res = await fetch(`${MOVIEZ_BASE}/api/check/${tmdbId}`);
     if (!res.ok) return null;
     return await res.json();
   } catch { return null; }
@@ -46,16 +56,46 @@ const rating = (v) => v ? v.toFixed(1) : '—';
 
 /* ---------- Genres (préchargés une fois) ---------- */
 async function loadGenres() {
-  if (state.genreCache) return state.genreCache;
+  if (state.genreCache) return;
   const [movies, tv] = await Promise.all([
     tmdb('/genre/movie/list').catch(() => ({ genres: [] })),
     tmdb('/genre/tv/list').catch(() => ({ genres: [] })),
   ]);
   const map = {};
-  [...(movies.genres || []), ...(tv.genres || [])].forEach((g) => { map[g.id] = g.name; });
+  const list = [];
+  [...(movies.genres || []), ...(tv.genres || [])].forEach((g) => {
+    if (!map[g.id]) { map[g.id] = g.name; list.push({ id: g.id, name: g.name }); }
+  });
   state.genreCache = map;
-  return map;
+  state.genreList = list.sort((a, b) => a.name.localeCompare(b.name));
+  populateGenreSelect();
 }
+
+function populateGenreSelect() {
+  const sel = $('#filter-genre');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Toutes</option>';
+  state.genreList.forEach((g) => {
+    const opt = document.createElement('option');
+    opt.value = g.id;
+    opt.textContent = g.name;
+    sel.appendChild(opt);
+  });
+}
+
+function populateYearSelect() {
+  const sel = $('#filter-year');
+  if (!sel) return;
+  const current = new Date().getFullYear();
+  sel.innerHTML = '<option value="">Toutes</option>';
+  for (let y = current; y >= 1950; y--) {
+    const opt = document.createElement('option');
+    opt.value = y;
+    opt.textContent = y;
+    sel.appendChild(opt);
+  }
+}
+
 const genreNames = (ids) => (ids || []).map((id) => state.genreCache?.[id]).filter(Boolean);
 
 /* ---------- Cartes ---------- */
@@ -79,11 +119,11 @@ function createCard(item, type = 'movie') {
   return card;
 }
 
-function renderRow(containerId, items, type = 'movie') {
+function renderRow(containerId, items, type = 'movie', append = false) {
   const row = document.getElementById(containerId);
   if (!row) return;
-  row.innerHTML = '';
-  if (!items || !items.length) {
+  if (!append) row.innerHTML = '';
+  if ((!items || !items.length) && !append) {
     row.innerHTML = `<p style="color:#9a9aa8;font-size:14px;padding:12px 0;">Aucun résultat.</p>`;
     return;
   }
@@ -115,7 +155,7 @@ async function loadHero() {
   }
 }
 
-/* ---------- Rangées ---------- */
+/* ---------- Rangées d'accueil ---------- */
 async function loadTrending() {
   try { const d = await tmdb('/trending/movie/week'); renderRow('row-tendances', (d.results || []).slice(0, 18)); }
   catch (e) { console.error('Tendances:', e); }
@@ -137,22 +177,76 @@ async function loadTopRated() {
   catch (e) { console.error('Top:', e); }
 }
 
+/* ---------- Filtres Discover ---------- */
+function getFilters() {
+  return {
+    type: $('#filter-type').value,
+    genre: $('#filter-genre').value,
+    year: $('#filter-year').value,
+    sort: $('#filter-sort').value,
+  };
+}
+
+async function loadDiscover(page = 1, append = false) {
+  const f = getFilters();
+  const params = {
+    sort_by: f.sort,
+    page: String(page),
+    'vote_count.gte': '20',
+  };
+  if (f.genre) params.with_genres = f.genre;
+  if (f.year) {
+    if (f.type === 'tv') params.first_air_date_year = f.year;
+    else params.primary_release_year = f.year;
+  }
+
+  const path = f.type === 'tv' ? '/discover/tv' : '/discover/movie';
+  state.filterLoading = true;
+  $('#load-more').disabled = true;
+  $('#load-more').textContent = 'Chargement…';
+
+  try {
+    const data = await tmdb(path, params);
+    const results = (data.results || []).filter((r) => r.poster_path);
+    state.filterTotalPages = data.total_pages || 1;
+    state.filterPage = page;
+    if (!append) state.filterItems = [];
+    state.filterItems = state.filterItems.concat(results);
+    renderRow('filter-results', results, f.type, append);
+    $('#filter-results-section').style.display = 'block';
+    const label = f.type === 'tv' ? 'Séries' : 'Films';
+    const genreName = f.genre ? (state.genreCache?.[f.genre] || '') : '';
+    $('#filter-results-title').textContent =
+      `${label}${genreName ? ' · ' + genreName : ''}${f.year ? ' · ' + f.year : ''} — ${state.filterItems.length} titres`;
+    $('#load-more').style.display = page < state.filterTotalPages ? 'inline-flex' : 'none';
+    $('#filter-results-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (e) {
+    console.error('Discover:', e);
+    alert('Erreur lors du chargement des filtres.');
+  } finally {
+    state.filterLoading = false;
+    $('#load-more').disabled = false;
+    $('#load-more').textContent = 'Charger plus';
+  }
+}
+
 /* ---------- Recherche ---------- */
 async function performSearch(query) {
   const q = query.trim();
-  const header = $('#tendances .row-header h2');
   if (!q) {
-    header.textContent = 'Tendances';
-    loadTrending();
+    $('#filter-results-section').style.display = 'none';
     return;
   }
   try {
     const data = await tmdb('/search/multi', { query: q, include_adult: 'false' });
-    const results = (data.results || []).filter((r) => r.media_type === 'movie' || r.media_type === 'tv');
-    const withPoster = results.filter((r) => r.poster_path);
-    renderRow('row-tendances', withPoster.slice(0, 18));
-    header.textContent = `Résultats pour « ${q} » (${withPoster.length})`;
-    $('#tendances').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const results = (data.results || []).filter(
+      (r) => (r.media_type === 'movie' || r.media_type === 'tv') && r.poster_path
+    );
+    renderRow('filter-results', results.slice(0, 18), 'movie');
+    $('#filter-results-section').style.display = 'block';
+    $('#filter-results-title').textContent = `Recherche : « ${q} » (${results.length})`;
+    $('#load-more').style.display = 'none';
+    $('#filter-results-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (e) { console.error('Recherche:', e); }
 }
 
@@ -160,6 +254,7 @@ async function performSearch(query) {
 async function openModal(item, type = 'movie') {
   state.currentModal = { item, type, detail: null };
   state.currentLang = 'vf';
+  state.currentSource = 'moviez';
 
   const title = item.title || item.name || '';
   const date = item.release_date || item.first_air_date;
@@ -177,22 +272,22 @@ async function openModal(item, type = 'movie') {
     <span>${type === 'tv' ? 'Série' : 'Film'}</span>
     <span id="modal-availability" style="color:#9a9aa8;">· vérification…</span>`;
 
-  // Reset lecteur + zone épisodes/langues
+  // Reset lecteur + zones
   $('#player-container').style.display = 'none';
   $('#player-frame').src = 'about:blank';
   $('#lang-bar').innerHTML = '';
   $('#episode-bar').innerHTML = '';
   $('#episode-bar').style.display = 'none';
+  $$('.source-btn').forEach((b) => b.classList.toggle('active', b.dataset.source === 'moviez'));
 
   $('#modal-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
 
-  // Vérification Moviez (dispo, type réel, langues, embed)
+  // Vérification Moviez (dispo, type, langues)
   const check = await moviezCheck(item.id);
   if (check && check.available) {
     state.currentModal.detail = check;
-    const labels = (check.languages || []).map((l) => state.langLabels[l] || l.toUpperCase());
-    $('#modal-availability').textContent = `· disponible`;
+    $('#modal-availability').textContent = '· disponible sur MoviezAPI';
     $('#modal-availability').style.color = '#4ade80';
     renderLangBar(check.languages || []);
     if (check.detectedType === 'series' && check.seasons) {
@@ -200,7 +295,7 @@ async function openModal(item, type = 'movie') {
       renderEpisodeBar(check.seasons);
     }
   } else {
-    $('#modal-availability').textContent = '· non disponible sur le lecteur';
+    $('#modal-availability').textContent = '· vérification MoviezAPI échouée (CineSrc reste dispo)';
     $('#modal-availability').style.color = '#f87171';
   }
 }
@@ -273,29 +368,39 @@ function closeModal() {
 }
 
 /* ---------- Lecture ---------- */
-function playCurrent() {
+function buildEmbed(source) {
   const ctx = state.currentModal;
-  if (!ctx) return;
+  if (!ctx) return null;
+  const { item } = ctx;
+  const type = ctx.detail?.detectedType === 'series' ? 'series' : (ctx.type === 'tv' ? 'series' : 'movie');
 
-  let embed = null;
-  if (ctx.detail && ctx.detail.embed) {
-    embed = ctx.detail.embed;
-    // Appliquer la langue choisie si le lecteur la gère
-    if (state.currentLang) {
-      const sep = embed.includes('?') ? '&' : '?';
-      embed = `${embed}${sep}lang=${state.currentLang}`;
-    }
-    // Série : injecter saison/épisode si sélectionnés
-    if (ctx.detail.detectedType === 'series') {
+  if (source === 'cinesrc') {
+    if (type === 'series') {
       const season = $('#season-select')?.value || 1;
       const ep = $('#episode-select')?.value || 1;
-      embed = `${PLAYER_BASE}/serie/${ctx.item.id}/${season}/${ep}`;
-      if (state.currentLang) embed += `?lang=${state.currentLang}`;
+      return `${CINESRC_BASE}/tv/${item.id}?s=${season}&e=${ep}`;
     }
-  } else {
-    return;
+    return `${CINESRC_BASE}/movie/${item.id}`;
   }
 
+  // MoviezAPI
+  if (!ctx.detail || !ctx.detail.embed) return null;
+  let embed = ctx.detail.embed;
+  if (type === 'series') {
+    const season = $('#season-select')?.value || 1;
+    const ep = $('#episode-select')?.value || 1;
+    embed = `${MOVIEZ_BASE}/serie/${item.id}/${season}/${ep}`;
+  }
+  if (state.currentLang) {
+    const sep = embed.includes('?') ? '&' : '?';
+    embed = `${embed}${sep}lang=${state.currentLang}`;
+  }
+  return embed;
+}
+
+function playCurrent() {
+  const embed = buildEmbed(state.currentSource);
+  if (!embed) { alert('Source indisponible pour ce titre.'); return; }
   const container = $('#player-container');
   const frame = $('#player-frame');
   frame.src = embed;
@@ -331,6 +436,30 @@ function bindEvents() {
     if (state.heroMovie) openModal(state.heroMovie, 'movie');
   });
 
+  // Filtres
+  $('#apply-filters').addEventListener('click', () => {
+    $('#search-input').value = '';
+    loadDiscover(1, false);
+  });
+  $('#reset-filters').addEventListener('click', () => {
+    $('#filter-type').value = 'movie';
+    $('#filter-genre').value = '';
+    $('#filter-year').value = '';
+    $('#filter-sort').value = 'popularity.desc';
+    $('#filter-results-section').style.display = 'none';
+    $('#search-input').value = '';
+  });
+  $('#filter-type').addEventListener('change', () => {
+    // Les IDs de genres diffèrent entre films et séries ; on recharge la liste.
+    if (state.genreList.length) populateGenreSelect();
+  });
+  $('#load-more').addEventListener('click', () => {
+    if (!state.filterLoading && state.filterPage < state.filterTotalPages) {
+      loadDiscover(state.filterPage + 1, true);
+    }
+  });
+
+  // Modale
   $('#modal-close').addEventListener('click', closeModal);
   $('#modal-overlay').addEventListener('click', (e) => {
     if (e.target.id === 'modal-overlay') closeModal();
@@ -340,6 +469,16 @@ function bindEvents() {
   });
 
   $('#modal-play').addEventListener('click', playCurrent);
+
+  // Sélecteur de source
+  $$('.source-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.currentSource = btn.dataset.source;
+      $$('.source-btn').forEach((b) => b.classList.toggle('active', b === btn));
+      // Si le lecteur est déjà ouvert, on recharge avec la nouvelle source
+      if ($('#player-container').style.display !== 'none') playCurrent();
+    });
+  });
 
   $('#modal-trailer').addEventListener('click', async () => {
     if (!state.currentModal) return;
@@ -357,6 +496,7 @@ function bindEvents() {
 /* ---------- Init ---------- */
 async function init() {
   bindEvents();
+  populateYearSelect();
   await loadGenres();
   await loadHero();
   await Promise.all([

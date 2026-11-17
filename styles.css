@@ -225,3 +225,48 @@ a { color: inherit; text-decoration: none; }
   outline: none; cursor: pointer; max-width: 280px;
 }
 #episode-bar select:focus { border-color: rgba(255,255,255,.35); }
+/* ===== Barre de filtres ===== */
+.filters-bar {
+  position: relative; z-index: 5;
+  background: rgba(11,11,15,.85); backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  padding: 14px 0;
+}
+.filters-inner {
+  max-width: 1400px; margin: 0 auto; padding: 0 32px;
+  display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap;
+}
+.filter-group { display: flex; flex-direction: column; gap: 4px; }
+.filter-group label { font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: .6px; }
+.filter-group select {
+  background: var(--surface); color: var(--text);
+  border: 1px solid rgba(255,255,255,.12); border-radius: 8px;
+  padding: 8px 12px; font-size: 13px; font-family: inherit; outline: none;
+  cursor: pointer; min-width: 130px;
+}
+.filter-group select:focus { border-color: rgba(255,255,255,.35); }
+.btn-apply, .btn-reset { padding: 9px 20px; font-size: 13px; }
+.btn-reset { background: rgba(255,255,255,.08); }
+.btn-reset:hover { background: rgba(255,255,255,.16); }
+
+.load-more-wrap { text-align: center; margin-top: 18px; }
+
+/* ===== Sélecteur de source ===== */
+.source-bar {
+  display: flex; align-items: center; gap: 8px; margin-top: 18px; flex-wrap: wrap;
+}
+.source-label { font-size: 12px; color: var(--text-dim); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+.source-btn {
+  padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 600;
+  background: rgba(255,255,255,.08); color: var(--text-dim);
+  border: 1px solid rgba(255,255,255,.1); transition: all .2s;
+}
+.source-btn:hover { color: var(--text); background: rgba(255,255,255,.14); }
+.source-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* ===== Responsive filtres ===== */
+@media (max-width: 600px) {
+  .filters-inner { padding: 0 16px; gap: 10px; }
+  .filter-group select { min-width: 100px; font-size: 12px; }
+  .btn-apply, .btn-reset { padding: 8px 14px; font-size: 12px; }
+}

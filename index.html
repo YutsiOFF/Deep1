@@ -51,6 +51,53 @@
     </div>
   </section>
 
+  <!-- Barre de filtres -->
+  <section class="filters-bar" id="filters-bar">
+    <div class="filters-inner">
+      <div class="filter-group">
+        <label for="filter-type">Type</label>
+        <select id="filter-type">
+          <option value="movie">Films</option>
+          <option value="tv">Séries</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="filter-genre">Catégorie</label>
+        <select id="filter-genre">
+          <option value="">Toutes</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="filter-year">Année</label>
+        <select id="filter-year">
+          <option value="">Toutes</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="filter-sort">Tri</label>
+        <select id="filter-sort">
+          <option value="popularity.desc">Popularité</option>
+          <option value="vote_average.desc">Mieux notés</option>
+          <option value="primary_release_date.desc">Plus récents</option>
+          <option value="primary_release_date.asc">Plus anciens</option>
+        </select>
+      </div>
+      <button class="btn btn-primary btn-apply" id="apply-filters">Filtrer</button>
+      <button class="btn btn-secondary btn-reset" id="reset-filters">Réinitialiser</button>
+    </div>
+  </section>
+
+  <!-- Résultats de filtres / recherche -->
+  <section class="row-section" id="filter-results-section" style="display:none;">
+    <div class="row-header">
+      <h2 id="filter-results-title">Résultats</h2>
+    </div>
+    <div class="row-scroll" id="filter-results"></div>
+    <div class="load-more-wrap">
+      <button class="btn btn-secondary" id="load-more">Charger plus</button>
+    </div>
+  </section>
+
   <!-- Rangées de films -->
   <main class="main-content">
     <section class="row-section" id="tendances">
@@ -122,6 +169,13 @@
           <button class="btn btn-primary" id="modal-play">▶ Regarder</button>
           <button class="btn btn-secondary" id="modal-trailer">Bande-annonce</button>
         </div>
+        <div class="source-bar" id="source-bar">
+          <span class="source-label">Source :</span>
+          <button class="source-btn active" data-source="moviez">MoviezAPI</button>
+          <button class="source-btn" data-source="cinesrc">CineSrc (moins de pubs)</button>
+        </div>
+        <div id="lang-bar"></div>
+        <div id="episode-bar" style="display:none;"></div>
         <div class="player-container" id="player-container" style="display:none;">
           <iframe id="player-frame" allowfullscreen allow="autoplay; fullscreen"></iframe>
         </div>
@@ -130,7 +184,7 @@
   </div>
 
   <footer class="footer">
-    <p>Deep1 — Démo de streaming. Données : TMDB · Lecteur : MoviezAPI.</p>
+    <p>Deep1 — Démo de streaming. Données : TMDB · Lecteurs : MoviezAPI & CineSrc.</p>
   </footer>
 
   <script src="app.js"></script>
